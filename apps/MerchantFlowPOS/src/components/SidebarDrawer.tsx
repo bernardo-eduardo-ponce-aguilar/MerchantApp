@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ShiftInfo } from '../types';
+import { useTheme } from '../theme/ThemeContext';
 
 interface SidebarDrawerProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   currentScreen,
   onSelectScreen,
 }) => {
+  const { theme } = useTheme();
+
   if (!isOpen) return null;
 
   const menuItems = [
@@ -33,32 +36,32 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-      <View style={styles.drawer}>
-        <View style={styles.drawerHeader}>
+      <View style={[styles.drawer, { backgroundColor: theme.surface }]}>
+        <View style={[styles.drawerHeader, { borderBottomColor: theme.border }]}>
           <View style={styles.brandContainer}>
-            <View style={styles.brandIcon}>
+            <View style={[styles.brandIcon, { backgroundColor: theme.primary }]}>
               <Ionicons name="card" size={22} color="#FFF" />
             </View>
             <View>
-              <Text style={styles.brandTitle}>MerchantFlow</Text>
-              <Text style={styles.brandSubtitle}>Terminal POS v1.0</Text>
+              <Text style={[styles.brandTitle, { color: theme.text }]}>MerchantFlow</Text>
+              <Text style={[styles.brandSubtitle, { color: theme.textSubtle }]}>Terminal POS v1.0</Text>
             </View>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Ionicons name="close" size={22} color="#64748B" />
+            <Ionicons name="close" size={22} color={theme.textSubtle} />
           </TouchableOpacity>
         </View>
 
         {/* Info Cajero */}
-        <View style={styles.cashierBox}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={20} color="#2563EB" />
+        <View style={[styles.cashierBox, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
+          <View style={[styles.avatar, { backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="person" size={20} color={theme.primary} />
           </View>
           <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={styles.cashierTitle}>
+            <Text style={[styles.cashierTitle, { color: theme.text }]}>
               {activeShift?.cashierName || 'Sin turno abierto'}
             </Text>
-            <Text style={styles.cashierStatus}>
+            <Text style={[styles.cashierStatus, { color: theme.success }]}>
               {activeShift?.isActive ? '● En turno activo' : '○ Turno no iniciado'}
             </Text>
           </View>
@@ -66,13 +69,16 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
         {/* Lista de viñetas de navegación */}
         <ScrollView style={styles.menuList}>
-          <Text style={styles.sectionHeader}>MÓDULOS DE OPERACIÓN</Text>
+          <Text style={[styles.sectionHeader, { color: theme.textSubtle }]}>MÓDULOS DE OPERACIÓN</Text>
           {menuItems.map((item) => {
             const isSelected = currentScreen === item.id;
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.menuItem, isSelected && styles.menuItemActive]}
+                style={[
+                  styles.menuItem,
+                  isSelected && { backgroundColor: theme.primaryLight },
+                ]}
                 onPress={() => {
                   if (item.id === 'shift') {
                     onOpenShiftModal();
@@ -85,10 +91,16 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 <Ionicons
                   name={item.icon as any}
                   size={20}
-                  color={isSelected ? '#2563EB' : '#475569'}
+                  color={isSelected ? theme.primary : theme.textMuted}
                   style={{ marginRight: 12 }}
                 />
-                <Text style={[styles.menuText, isSelected && styles.menuTextActive]}>
+                <Text
+                  style={[
+                    styles.menuText,
+                    { color: isSelected ? theme.primary : theme.textMuted },
+                    isSelected && styles.menuTextActive,
+                  ]}
+                >
                   {item.label}
                 </Text>
                 {item.tag ? (
@@ -96,14 +108,19 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                     style={[
                       styles.tagBadge,
                       item.id === 'shift' && activeShift?.isActive
-                        ? styles.tagSuccess
-                        : styles.tagDefault,
+                        ? { backgroundColor: theme.successLight }
+                        : { backgroundColor: theme.surfaceSubtle },
                     ]}
                   >
                     <Text
                       style={[
                         styles.tagText,
-                        item.id === 'shift' && activeShift?.isActive && styles.tagTextSuccess,
+                        {
+                          color:
+                            item.id === 'shift' && activeShift?.isActive
+                              ? theme.success
+                              : theme.textSubtle,
+                        },
                       ]}
                     >
                       {item.tag}
@@ -115,10 +132,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           })}
         </ScrollView>
 
-        <View style={styles.drawerFooter}>
-          <TouchableOpacity style={styles.shiftActionBtn} onPress={() => { onOpenShiftModal(); onClose(); }}>
-            <Ionicons name="swap-horizontal" size={18} color="#2563EB" />
-            <Text style={styles.shiftActionText}>
+        <View style={[styles.drawerFooter, { borderTopColor: theme.border }]}>
+          <TouchableOpacity
+            style={[styles.shiftActionBtn, { backgroundColor: theme.primaryLight }]}
+            onPress={() => { onOpenShiftModal(); onClose(); }}
+          >
+            <Ionicons name="swap-horizontal" size={18} color={theme.primary} />
+            <Text style={[styles.shiftActionText, { color: theme.primary }]}>
               {activeShift?.isActive ? 'Gestionar / Cerrar Turno' : 'Iniciar Turno'}
             </Text>
           </TouchableOpacity>
@@ -148,7 +168,6 @@ const styles = StyleSheet.create({
   },
   drawer: {
     width: 320,
-    backgroundColor: '#FFFFFF',
     height: '100%',
     shadowColor: '#000',
     shadowOpacity: 0.15,
@@ -165,7 +184,6 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   brandContainer: {
     flexDirection: 'row',
@@ -175,7 +193,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -183,11 +200,9 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
   },
   brandSubtitle: {
     fontSize: 11,
-    color: '#64748B',
   },
   closeBtn: {
     padding: 6,
@@ -197,27 +212,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     margin: 16,
     padding: 12,
-    backgroundColor: '#F8FAFC',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   avatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#DBEAFE',
     justifyContent: 'center',
     alignItems: 'center',
   },
   cashierTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E293B',
   },
   cashierStatus: {
     fontSize: 12,
-    color: '#059669',
     marginTop: 2,
   },
   menuList: {
@@ -227,7 +237,6 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
     letterSpacing: 0.8,
     marginVertical: 12,
   },
@@ -239,17 +248,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 4,
   },
-  menuItemActive: {
-    backgroundColor: '#EFF6FF',
-  },
   menuText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#334155',
     flex: 1,
   },
   menuTextActive: {
-    color: '#2563EB',
     fontWeight: '700',
   },
   tagBadge: {
@@ -257,24 +261,13 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 12,
   },
-  tagDefault: {
-    backgroundColor: '#F1F5F9',
-  },
-  tagSuccess: {
-    backgroundColor: '#DCFCE7',
-  },
   tagText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#64748B',
-  },
-  tagTextSuccess: {
-    color: '#16A34A',
   },
   drawerFooter: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
   },
   shiftActionBtn: {
     flexDirection: 'row',
@@ -282,12 +275,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#EFF6FF',
   },
   shiftActionText: {
     marginLeft: 8,
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563EB',
   },
 });

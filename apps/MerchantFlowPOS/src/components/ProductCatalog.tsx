@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Category, Product } from '../types';
+import { useTheme } from '../theme/ThemeContext';
 
 interface ProductCatalogProps {
   categories: Category[];
@@ -30,6 +31,8 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   onChangeSearchQuery,
   onAddProduct,
 }) => {
+  const { theme } = useTheme();
+
   const filteredProducts = products.filter((prod) => {
     const matchesCategory =
       selectedCategoryId === 'all' || prod.categoryId === selectedCategoryId;
@@ -40,20 +43,21 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Barra de búsqueda */}
-      <View style={styles.searchBarContainer}>
-        <Ionicons name="search" size={20} color="#94A3B8" style={{ marginRight: 8 }} />
+      <View style={[styles.searchBarContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Ionicons name="search" size={20} color={theme.textSubtle} style={{ marginRight: 8 }} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.text }]}
           placeholder="Buscar producto por nombre o código de barra..."
+          placeholderTextColor={theme.textSubtle}
           value={searchQuery}
           onChangeText={onChangeSearchQuery}
           clearButtonMode="while-editing"
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => onChangeSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            <Ionicons name="close-circle" size={18} color={theme.textSubtle} />
           </TouchableOpacity>
         )}
       </View>
@@ -70,17 +74,26 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
             return (
               <TouchableOpacity
                 key={cat.id}
-                style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
+                style={[
+                  styles.categoryPill,
+                  {
+                    backgroundColor: isSelected ? theme.primary : theme.surface,
+                    borderColor: isSelected ? theme.primary : theme.border,
+                  },
+                ]}
                 onPress={() => onSelectCategory(cat.id)}
               >
                 <Ionicons
                   name={cat.icon as any}
                   size={16}
-                  color={isSelected ? '#FFFFFF' : '#475569'}
+                  color={isSelected ? '#FFFFFF' : theme.textMuted}
                   style={{ marginRight: 6 }}
                 />
                 <Text
-                  style={[styles.categoryPillText, isSelected && styles.categoryPillTextActive]}
+                  style={[
+                    styles.categoryPillText,
+                    { color: isSelected ? '#FFFFFF' : theme.textMuted },
+                  ]}
                 >
                   {cat.name}
                 </Text>
@@ -99,26 +112,31 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
         columnWrapperStyle={styles.columnWrapper}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="alert-circle-outline" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyText}>No se encontraron productos en esta categoría</Text>
+            <Ionicons name="alert-circle-outline" size={48} color={theme.borderSubtle} />
+            <Text style={[styles.emptyText, { color: theme.textSubtle }]}>
+              No se encontraron productos en esta categoría
+            </Text>
           </View>
         }
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.productCard}
+            style={[
+              styles.productCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
             activeOpacity={0.7}
             onPress={() => onAddProduct(item)}
           >
-            <View style={styles.productBadge}>
-              <Text style={styles.productCode}>{item.code}</Text>
+            <View style={[styles.productBadge, { backgroundColor: theme.surfaceSubtle }]}>
+              <Text style={[styles.productCode, { color: theme.textSubtle }]}>{item.code}</Text>
             </View>
-            <Text style={styles.productName} numberOfLines={2}>
+            <Text style={[styles.productName, { color: theme.text }]} numberOfLines={2}>
               {item.name}
             </Text>
             <View style={styles.productFooter}>
-              <Text style={styles.productPrice}>${item.basePrice.toFixed(2)}</Text>
-              <View style={styles.addIconCircle}>
-                <Ionicons name="add" size={18} color="#2563EB" />
+              <Text style={[styles.productPrice, { color: theme.text }]}>${item.basePrice.toFixed(2)}</Text>
+              <View style={[styles.addIconCircle, { backgroundColor: theme.primaryLight }]}>
+                <Ionicons name="add" size={18} color={theme.primary} />
               </View>
             </View>
           </TouchableOpacity>
@@ -131,15 +149,12 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
     padding: 12,
   },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -148,7 +163,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A',
   },
   categoriesWrapper: {
     marginBottom: 12,
@@ -160,24 +174,14 @@ const styles = StyleSheet.create({
   categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
   },
-  categoryPillActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
-  },
   categoryPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#475569',
-  },
-  categoryPillTextActive: {
-    color: '#FFFFFF',
   },
   productsGrid: {
     paddingBottom: 20,
@@ -189,17 +193,14 @@ const styles = StyleSheet.create({
   },
   productCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     justifyContent: 'space-between',
     minHeight: 115,
   },
   productBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#F1F5F9',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -207,13 +208,11 @@ const styles = StyleSheet.create({
   },
   productCode: {
     fontSize: 10,
-    color: '#64748B',
     fontWeight: '600',
   },
   productName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1E293B',
     marginBottom: 8,
   },
   productFooter: {
@@ -224,13 +223,11 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
   },
   addIconCircle: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -241,7 +238,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 10,
-    color: '#94A3B8',
     fontSize: 14,
   },
 });

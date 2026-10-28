@@ -14,6 +14,7 @@ import { ShiftModal } from './src/components/ShiftModal';
 import { EditItemModal } from './src/components/EditItemModal';
 import { CheckoutModal } from './src/components/CheckoutModal';
 import { ReceiptModal } from './src/components/ReceiptModal';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './src/data/initialData';
 import {
   Category,
@@ -24,10 +25,12 @@ import {
   CompletedSale,
 } from './src/types';
 
-export default function App() {
+function POSAppContent() {
+  const { theme, isDark } = useTheme();
+
   // Estado de Turno de Caja (Onboarding directo en caja)
   const [activeShift, setActiveShift] = useState<ShiftInfo | null>(null);
-  const [isShiftModalOpen, setIsShiftModalOpen] = useState<boolean>(true); // Abre modal de bienvenida/turno al arrancar
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState<boolean>(true);
 
   // Estado de Navegación Lateral
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
@@ -158,10 +161,10 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.surface }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Barra Superior con botón hamburguesa */}
+      {/* Barra Superior con botón hamburguesa y Switch de Tema Oscuro */}
       <Header
         onToggleSidebar={() => setIsSidebarOpen(true)}
         activeShift={activeShift}
@@ -169,7 +172,7 @@ export default function App() {
       />
 
       {/* Contenido Principal de Caja (POS) */}
-      <View style={styles.posContainer}>
+      <View style={[styles.posContainer, { backgroundColor: theme.background }]}>
         {/* Catálogo con categorías y buscador */}
         <ProductCatalog
           categories={categories}
@@ -237,10 +240,17 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <ThemeProvider>
+      <POSAppContent />
+    </ThemeProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   posContainer: {

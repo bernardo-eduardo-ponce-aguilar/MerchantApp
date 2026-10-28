@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Modal,
   View,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CompletedSale } from '../types';
+import { useTheme } from '../theme/ThemeContext';
 
 interface ReceiptModalProps {
   sale: CompletedSale | null;
@@ -16,87 +17,89 @@ interface ReceiptModalProps {
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, onClose }) => {
+  const { theme } = useTheme();
+
   if (!sale) return null;
 
   return (
     <Modal visible={!!sale} transparent animationType="fade">
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: theme.surface }]}>
           {/* Ticket Header */}
           <View style={styles.ticketHeader}>
-            <Text style={styles.storeName}>MERCHANTFLOW STORE</Text>
-            <Text style={styles.ticketMeta}>Ticket de Venta #{sale.id.slice(-6)}</Text>
-            <Text style={styles.ticketDate}>{sale.timestamp}</Text>
+            <Text style={[styles.storeName, { color: theme.text }]}>MERCHANTFLOW STORE</Text>
+            <Text style={[styles.ticketMeta, { color: theme.textSubtle }]}>Ticket de Venta #{sale.id.slice(-6)}</Text>
+            <Text style={[styles.ticketDate, { color: theme.textSubtle }]}>{sale.timestamp}</Text>
           </View>
 
-          <View style={styles.dividerDashed} />
+          <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
 
           {/* Ticket Items */}
           <ScrollView style={styles.itemsList}>
             {sale.items.map((item) => (
               <View key={item.cartItemId} style={styles.itemRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName}>
+                  <Text style={[styles.itemName, { color: theme.text }]}>
                     {item.quantity}x {item.product.name}
                   </Text>
                   {item.discount > 0 && (
-                    <Text style={styles.itemDiscountText}>
+                    <Text style={[styles.itemDiscountText, { color: theme.success }]}>
                       Dto: -${(item.discount * item.quantity).toFixed(2)}
                     </Text>
                   )}
                 </View>
-                <Text style={styles.itemTotal}>
+                <Text style={[styles.itemTotal, { color: theme.text }]}>
                   ${((item.unitPrice - item.discount) * item.quantity).toFixed(2)}
                 </Text>
               </View>
             ))}
           </ScrollView>
 
-          <View style={styles.dividerDashed} />
+          <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
 
           {/* Totales */}
           <View style={styles.totalSection}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal:</Text>
-              <Text style={styles.summaryValue}>${sale.subtotal.toFixed(2)}</Text>
+              <Text style={[styles.summaryLabel, { color: theme.textSubtle }]}>Subtotal:</Text>
+              <Text style={[styles.summaryValue, { color: theme.text }]}>${sale.subtotal.toFixed(2)}</Text>
             </View>
             {sale.discountTotal > 0 && (
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Descuentos:</Text>
-                <Text style={styles.summaryValue}>-${sale.discountTotal.toFixed(2)}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.success }]}>Descuentos:</Text>
+                <Text style={[styles.summaryValue, { color: theme.success }]}>-${sale.discountTotal.toFixed(2)}</Text>
               </View>
             )}
             <View style={[styles.summaryRow, { marginTop: 4 }]}>
-              <Text style={styles.grandTotalLabel}>TOTAL:</Text>
-              <Text style={styles.grandTotalValue}>${sale.total.toFixed(2)}</Text>
+              <Text style={[styles.grandTotalLabel, { color: theme.text }]}>TOTAL:</Text>
+              <Text style={[styles.grandTotalValue, { color: theme.primary }]}>${sale.total.toFixed(2)}</Text>
             </View>
           </View>
 
-          <View style={styles.dividerDashed} />
+          <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
 
           {/* Pagos Recibidos y Vuelto */}
           <View style={styles.paymentSection}>
             {sale.payments.map((p, index) => (
               <View key={index} style={styles.summaryRow}>
-                <Text style={styles.paymentMethod}>Pago ({p.method}):</Text>
-                <Text style={styles.paymentAmount}>${p.amountReceived.toFixed(2)}</Text>
+                <Text style={[styles.paymentMethod, { color: theme.textSubtle }]}>Pago ({p.method}):</Text>
+                <Text style={[styles.paymentAmount, { color: theme.text }]}>${p.amountReceived.toFixed(2)}</Text>
               </View>
             ))}
 
             <View style={[styles.summaryRow, { marginTop: 4 }]}>
-              <Text style={styles.changeLabel}>CAMBIO ENTREGADO:</Text>
-              <Text style={styles.changeAmount}>${sale.changeGiven.toFixed(2)}</Text>
+              <Text style={[styles.changeLabel, { color: theme.success }]}>CAMBIO ENTREGADO:</Text>
+              <Text style={[styles.changeAmount, { color: theme.success }]}>${sale.changeGiven.toFixed(2)}</Text>
             </View>
           </View>
 
-          <View style={styles.printerStatusBox}>
-            <Ionicons name="print-outline" size={16} color="#059669" />
-            <Text style={styles.printerStatusText}>
+          <View style={[styles.printerStatusBox, { backgroundColor: theme.successLight }]}>
+            <Ionicons name="print-outline" size={16} color={theme.success} />
+            <Text style={[styles.printerStatusText, { color: theme.success }]}>
               Emisión de ticket térmico simulado con éxito (Bluetooth/USB)
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.newSaleBtn} onPress={onClose}>
+          <TouchableOpacity style={[styles.newSaleBtn, { backgroundColor: theme.primary }]} onPress={onClose}>
             <Text style={styles.newSaleBtnText}>Iniciar Siguiente Venta</Text>
           </TouchableOpacity>
         </View>
@@ -114,7 +117,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     width: '100%',
     maxWidth: 380,
@@ -127,22 +129,18 @@ const styles = StyleSheet.create({
   storeName: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
     letterSpacing: 1,
   },
   ticketMeta: {
     fontSize: 12,
-    color: '#64748B',
     marginTop: 2,
   },
   ticketDate: {
     fontSize: 11,
-    color: '#94A3B8',
     marginTop: 2,
   },
   dividerDashed: {
     borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
     borderStyle: 'dashed',
     marginVertical: 10,
   },
@@ -156,17 +154,14 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 13,
-    color: '#1E293B',
     fontWeight: '500',
   },
   itemDiscountText: {
     fontSize: 11,
-    color: '#059669',
   },
   itemTotal: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0F172A',
   },
   totalSection: {
     gap: 4,
@@ -177,49 +172,40 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 12,
-    color: '#64748B',
   },
   summaryValue: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1E293B',
   },
   grandTotalLabel: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#0F172A',
   },
   grandTotalValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#2563EB',
   },
   paymentSection: {
     gap: 4,
   },
   paymentMethod: {
     fontSize: 12,
-    color: '#475569',
   },
   paymentAmount: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0F172A',
   },
   changeLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#059669',
   },
   changeAmount: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#059669',
   },
   printerStatusBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
     padding: 10,
     borderRadius: 8,
     marginTop: 14,
@@ -227,12 +213,10 @@ const styles = StyleSheet.create({
   },
   printerStatusText: {
     fontSize: 11,
-    color: '#065F46',
     flex: 1,
     fontWeight: '500',
   },
   newSaleBtn: {
-    backgroundColor: '#2563EB',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',

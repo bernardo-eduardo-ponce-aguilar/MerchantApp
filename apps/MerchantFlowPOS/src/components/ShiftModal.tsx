@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ShiftInfo } from '../types';
+import { useTheme } from '../theme/ThemeContext';
 
 interface ShiftModalProps {
   visible: boolean;
@@ -26,6 +27,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
   onResumeShift,
   onCloseShift,
 }) => {
+  const { theme } = useTheme();
   const [cashierName, setCashierName] = useState(activeShift?.cashierName || 'Cajero Principal');
   const [initialCash, setInitialCash] = useState(
     activeShift ? activeShift.initialCash.toString() : '500.00'
@@ -39,13 +41,13 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: theme.surface }]}>
           <View style={styles.header}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="cash-outline" size={32} color="#2563EB" />
+            <View style={[styles.iconCircle, { backgroundColor: theme.primaryLight }]}>
+              <Ionicons name="cash-outline" size={32} color={theme.primary} />
             </View>
-            <Text style={styles.title}>Control de Turno de Caja</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { color: theme.text }]}>Control de Turno de Caja</Text>
+            <Text style={[styles.subtitle, { color: theme.textSubtle }]}>
               {activeShift?.isActive
                 ? 'Existe un turno activo registrado en esta terminal'
                 : 'Inicia tu turno de caja para comenzar las operaciones del día'}
@@ -53,51 +55,53 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
           </View>
 
           {activeShift?.isActive ? (
-            <View style={styles.activeShiftBox}>
+            <View style={[styles.activeShiftBox, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Cajero en turno:</Text>
-                <Text style={styles.infoValue}>{activeShift.cashierName}</Text>
+                <Text style={[styles.infoLabel, { color: theme.textSubtle }]}>Cajero en turno:</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{activeShift.cashierName}</Text>
               </View>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Fondo inicial:</Text>
-                <Text style={styles.infoValue}>${activeShift.initialCash.toFixed(2)}</Text>
+                <Text style={[styles.infoLabel, { color: theme.textSubtle }]}>Fondo inicial:</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>${activeShift.initialCash.toFixed(2)}</Text>
               </View>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Apertura:</Text>
-                <Text style={styles.infoValue}>{activeShift.startedAt}</Text>
+                <Text style={[styles.infoLabel, { color: theme.textSubtle }]}>Apertura:</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{activeShift.startedAt}</Text>
               </View>
 
-              <TouchableOpacity style={styles.primaryBtn} onPress={onResumeShift}>
+              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: theme.primary }]} onPress={onResumeShift}>
                 <Ionicons name="play" size={18} color="#FFF" style={{ marginRight: 6 }} />
                 <Text style={styles.primaryBtnText}>Retomar Turno Activo</Text>
               </TouchableOpacity>
 
               {onCloseShift && (
-                <TouchableOpacity style={styles.secondaryBtn} onPress={onCloseShift}>
-                  <Text style={styles.secondaryBtnText}>Cerrar Turno Anterior</Text>
+                <TouchableOpacity style={[styles.secondaryBtn, { borderColor: theme.border, backgroundColor: theme.surface }]} onPress={onCloseShift}>
+                  <Text style={[styles.secondaryBtnText, { color: theme.textSubtle }]}>Cerrar Turno Anterior</Text>
                 </TouchableOpacity>
               )}
             </View>
           ) : (
             <View style={styles.form}>
-              <Text style={styles.fieldLabel}>Nombre del Cajero / Operador</Text>
+              <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Nombre del Cajero / Operador</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
                 value={cashierName}
                 onChangeText={setCashierName}
                 placeholder="Ej. Juan Pérez"
+                placeholderTextColor={theme.textSubtle}
               />
 
-              <Text style={styles.fieldLabel}>Fondo Inicial de Caja ($ MXN)</Text>
+              <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Fondo Inicial de Caja ($ MXN)</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
                 value={initialCash}
                 onChangeText={setInitialCash}
                 keyboardType="numeric"
                 placeholder="0.00"
+                placeholderTextColor={theme.textSubtle}
               />
 
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleStart}>
+              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: theme.primary }]} onPress={handleStart}>
                 <Ionicons name="log-in-outline" size={20} color="#FFF" style={{ marginRight: 6 }} />
                 <Text style={styles.primaryBtnText}>Aperturar / Empezar Turno</Text>
               </TouchableOpacity>
@@ -118,7 +122,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     width: '100%',
     maxWidth: 480,
@@ -140,7 +143,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -148,11 +150,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
   },
   subtitle: {
     fontSize: 13,
-    color: '#64748B',
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
@@ -161,11 +161,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   activeShiftBox: {
-    backgroundColor: '#F8FAFC',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   infoRow: {
     flexDirection: 'row',
@@ -174,32 +172,25 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: '#64748B',
   },
   infoValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E293B',
   },
   fieldLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#334155',
     marginBottom: 6,
     marginTop: 10,
   },
   input: {
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#0F172A',
   },
   primaryBtn: {
-    backgroundColor: '#2563EB',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -214,15 +205,12 @@ const styles = StyleSheet.create({
   },
   secondaryBtn: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 10,
-    backgroundColor: '#FFF',
   },
   secondaryBtnText: {
-    color: '#64748B',
     fontWeight: '600',
     fontSize: 14,
   },

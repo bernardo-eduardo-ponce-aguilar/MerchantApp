@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PaymentMethodType, PaymentEntry } from '../types';
+import { useTheme } from '../theme/ThemeContext';
 
 interface CheckoutModalProps {
   visible: boolean;
@@ -24,11 +25,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   onFinishSale,
 }) => {
+  const { theme } = useTheme();
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('EFECTIVO');
   const [cashReceived, setCashReceived] = useState(totalAmount.toString());
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
 
-  // Update initial cash when modal becomes visible or total changes
   React.useEffect(() => {
     if (visible) {
       setCashReceived(totalAmount > 0 ? totalAmount.toString() : '');
@@ -37,8 +38,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   }, [visible, totalAmount]);
 
   const currentEntered = parseFloat(cashReceived) || 0;
-
-  // Calculamos montos cubiertos
   const totalAlreadyPaid = payments.reduce((acc, p) => acc + p.amountReceived, 0);
   const totalReceivedCombined = totalAlreadyPaid + currentEntered;
   const covered = Math.min(totalReceivedCombined, totalAmount);
@@ -47,12 +46,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleQuickCash = (amount: number) => {
     setCashReceived(amount.toString());
-  };
-
-  const handleAddPaymentPartial = () => {
-    if (currentEntered <= 0) return;
-    setPayments([...payments, { method: selectedMethod, amountReceived: currentEntered }]);
-    setCashReceived('');
   };
 
   const handleComplete = () => {
@@ -68,15 +61,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: theme.surface }]}>
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Cobro de Transacción</Text>
-              <Text style={styles.subtitle}>Selecciona método y registra el pago</Text>
+              <Text style={[styles.title, { color: theme.text }]}>Cobro de Transacción</Text>
+              <Text style={[styles.subtitle, { color: theme.textSubtle }]}>Selecciona método y registra el pago</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={24} color={theme.textSubtle} />
             </TouchableOpacity>
           </View>
 
@@ -88,7 +81,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
             {/* Métodos de Pago */}
-            <Text style={styles.sectionTitle}>Método de Pago</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textSubtle }]}>Método de Pago</Text>
             <View style={styles.methodsRow}>
               {(['EFECTIVO', 'TARJETA', 'TRANSFERENCIA'] as PaymentMethodType[]).map((m) => {
                 const isSelected = selectedMethod === m;
@@ -101,16 +94,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 return (
                   <TouchableOpacity
                     key={m}
-                    style={[styles.methodCard, isSelected && styles.methodCardActive]}
+                    style={[
+                      styles.methodCard,
+                      { backgroundColor: theme.surfaceSubtle, borderColor: theme.border },
+                      isSelected && { borderColor: theme.primary, backgroundColor: theme.primaryLight },
+                    ]}
                     onPress={() => setSelectedMethod(m)}
                   >
                     <Ionicons
                       name={iconName as any}
                       size={22}
-                      color={isSelected ? '#2563EB' : '#64748B'}
+                      color={isSelected ? theme.primary : theme.textSubtle}
                     />
                     <Text
-                      style={[styles.methodText, isSelected && styles.methodTextActive]}
+                      style={[
+                        styles.methodText,
+                        { color: isSelected ? theme.primary : theme.textSubtle },
+                        isSelected && styles.methodTextActive,
+                      ]}
                     >
                       {m}
                     </Text>
@@ -120,15 +121,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </View>
 
             {/* Input Cantidad Recibida */}
-            <Text style={styles.sectionTitle}>Cantidad Recibida ($ MXN)</Text>
-            <View style={styles.inputContainer}>
-              <Text style={styles.currencySymbol}>$</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textSubtle }]}>Cantidad Recibida ($ MXN)</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
+              <Text style={[styles.currencySymbol, { color: theme.textSubtle }]}>$</Text>
               <TextInput
-                style={styles.amountInput}
+                style={[styles.amountInput, { color: theme.text }]}
                 value={cashReceived}
                 onChangeText={setCashReceived}
                 keyboardType="numeric"
                 placeholder="0.00"
+                placeholderTextColor={theme.textSubtle}
               />
             </View>
 
@@ -136,7 +138,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {selectedMethod === 'EFECTIVO' && (
               <View style={styles.quickCashRow}>
                 <TouchableOpacity
-                  style={styles.quickCashBtnExact}
+                  style={[styles.quickCashBtnExact, { backgroundColor: theme.primary }]}
                   onPress={() => handleQuickCash(remaining > 0 ? remaining : totalAmount)}
                 >
                   <Text style={styles.quickCashExactText}>Exacto</Text>
@@ -144,10 +146,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {quickAmounts.map((amt) => (
                   <TouchableOpacity
                     key={amt}
-                    style={styles.quickCashBtn}
+                    style={[styles.quickCashBtn, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}
                     onPress={() => handleQuickCash(amt)}
                   >
-                    <Text style={styles.quickCashText}>${amt}</Text>
+                    <Text style={[styles.quickCashText, { color: theme.textMuted }]}>${amt}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -155,43 +157,43 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* Pagos parciales registrados */}
             {payments.length > 0 && (
-              <View style={styles.paymentsList}>
-                <Text style={styles.sectionTitle}>Abonos Registrados</Text>
+              <View style={[styles.paymentsList, { backgroundColor: theme.surfaceSubtle }]}>
+                <Text style={[styles.sectionTitle, { color: theme.textSubtle }]}>Abonos Registrados</Text>
                 {payments.map((p, idx) => (
                   <View key={idx} style={styles.paymentRowItem}>
-                    <Text style={styles.paymentRowMethod}>{p.method}:</Text>
-                    <Text style={styles.paymentRowAmt}>${p.amountReceived.toFixed(2)}</Text>
+                    <Text style={[styles.paymentRowMethod, { color: theme.textSubtle }]}>{p.method}:</Text>
+                    <Text style={[styles.paymentRowAmt, { color: theme.text }]}>${p.amountReceived.toFixed(2)}</Text>
                   </View>
                 ))}
               </View>
             )}
 
             {/* Desglose de Estado de Pago (Cubierto, Faltante, Cambio) */}
-            <View style={styles.summaryBreakdown}>
+            <View style={[styles.summaryBreakdown, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Total Recibido:</Text>
-                <Text style={styles.breakdownValue}>${totalReceivedCombined.toFixed(2)}</Text>
+                <Text style={[styles.breakdownLabel, { color: theme.textSubtle }]}>Total Recibido:</Text>
+                <Text style={[styles.breakdownValue, { color: theme.text }]}>${totalReceivedCombined.toFixed(2)}</Text>
               </View>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Monto Cubierto:</Text>
-                <Text style={[styles.breakdownValue, { color: '#059669' }]}>
+                <Text style={[styles.breakdownLabel, { color: theme.textSubtle }]}>Monto Cubierto:</Text>
+                <Text style={[styles.breakdownValue, { color: theme.success }]}>
                   ${covered.toFixed(2)}
                 </Text>
               </View>
 
               {remaining > 0 ? (
-                <View style={[styles.breakdownRow, styles.alertRow]}>
-                  <Text style={[styles.breakdownLabel, styles.alertText]}>
+                <View style={[styles.breakdownRow, styles.alertRow, { backgroundColor: theme.dangerLight }]}>
+                  <Text style={[styles.breakdownLabel, { color: theme.danger, fontWeight: '700' }]}>
                     FALTANTE POR CUBRIR:
                   </Text>
-                  <Text style={[styles.breakdownValue, styles.alertValue]}>
+                  <Text style={[styles.breakdownValue, { color: theme.danger, fontWeight: '800', fontSize: 16 }]}>
                     ${remaining.toFixed(2)}
                   </Text>
                 </View>
               ) : (
-                <View style={[styles.breakdownRow, styles.changeRow]}>
-                  <Text style={[styles.breakdownLabel, styles.changeLabel]}>CAMBIO (VUELTO):</Text>
-                  <Text style={[styles.breakdownValue, styles.changeValue]}>
+                <View style={[styles.breakdownRow, styles.changeRow, { backgroundColor: theme.successLight }]}>
+                  <Text style={[styles.breakdownLabel, { color: theme.success, fontWeight: '700' }]}>CAMBIO (VUELTO):</Text>
+                  <Text style={[styles.breakdownValue, { color: theme.success, fontWeight: '800', fontSize: 18 }]}>
                     ${change.toFixed(2)}
                   </Text>
                 </View>
@@ -204,7 +206,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <TouchableOpacity
               style={[
                 styles.finishBtn,
-                remaining > 0 && styles.finishBtnDisabled,
+                { backgroundColor: theme.success },
+                remaining > 0 && { backgroundColor: theme.borderSubtle },
               ]}
               disabled={remaining > 0}
               onPress={handleComplete}
@@ -230,7 +233,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     width: '100%',
     maxWidth: 500,
@@ -245,11 +247,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
   },
   subtitle: {
     fontSize: 12,
-    color: '#64748B',
     marginTop: 2,
   },
   closeBtn: {
@@ -277,7 +277,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#475569',
     textTransform: 'uppercase',
     marginBottom: 8,
     marginTop: 4,
@@ -289,34 +288,24 @@ const styles = StyleSheet.create({
   },
   methodCard: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  methodCardActive: {
-    borderColor: '#2563EB',
-    backgroundColor: '#EFF6FF',
-  },
   methodText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
     marginTop: 4,
   },
   methodTextActive: {
-    color: '#2563EB',
     fontWeight: '700',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
     borderWidth: 2,
-    borderColor: '#CBD5E1',
     borderRadius: 10,
     paddingHorizontal: 14,
     marginBottom: 12,
@@ -324,14 +313,12 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#64748B',
     marginRight: 6,
   },
   amountInput: {
     flex: 1,
     fontSize: 22,
     fontWeight: '700',
-    color: '#0F172A',
     paddingVertical: 8,
   },
   quickCashRow: {
@@ -340,7 +327,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   quickCashBtnExact: {
-    backgroundColor: '#3B82F6',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 6,
@@ -353,20 +339,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   quickCashBtn: {
-    backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   quickCashText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#334155',
   },
   paymentsList: {
-    backgroundColor: '#F8FAFC',
     padding: 10,
     borderRadius: 8,
     marginBottom: 12,
@@ -378,19 +360,15 @@ const styles = StyleSheet.create({
   },
   paymentRowMethod: {
     fontSize: 12,
-    color: '#64748B',
   },
   paymentRowAmt: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1E293B',
   },
   summaryBreakdown: {
-    backgroundColor: '#F8FAFC',
     padding: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     marginVertical: 6,
   },
   breakdownRow: {
@@ -401,58 +379,32 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 13,
-    color: '#64748B',
   },
   breakdownValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E293B',
   },
   alertRow: {
-    backgroundColor: '#FEF2F2',
     padding: 8,
     borderRadius: 6,
     marginTop: 4,
     marginBottom: 0,
-  },
-  alertText: {
-    color: '#DC2626',
-    fontWeight: '700',
-  },
-  alertValue: {
-    color: '#DC2626',
-    fontWeight: '800',
-    fontSize: 16,
   },
   changeRow: {
-    backgroundColor: '#ECFDF5',
     padding: 8,
     borderRadius: 6,
     marginTop: 4,
     marginBottom: 0,
-  },
-  changeLabel: {
-    color: '#059669',
-    fontWeight: '700',
-  },
-  changeValue: {
-    color: '#059669',
-    fontWeight: '800',
-    fontSize: 18,
   },
   footer: {
     marginTop: 16,
   },
   finishBtn: {
-    backgroundColor: '#16A34A',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 14,
     borderRadius: 10,
-  },
-  finishBtnDisabled: {
-    backgroundColor: '#94A3B8',
   },
   finishBtnText: {
     fontSize: 16,
