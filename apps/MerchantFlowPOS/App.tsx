@@ -1,0 +1,250 @@
+import React, { useState } from 'react';
+import {
+  SafeAreaView,
+  View,
+  StyleSheet,
+  StatusBar,
+  Platform,
+} from 'react-native';
+import { Header } from './src/components/Header';
+import { SidebarDrawer } from './src/components/SidebarDrawer';
+import { ProductCatalog } from './src/components/ProductCatalog';
+import { TransactionCart } from './src/components/TransactionCart';
+import { ShiftModal } from './src/components/ShiftModal';
+import { EditItemModal } from './src/components/EditItemModal';
+import { CheckoutModal } from './src/components/CheckoutModal';
+import { ReceiptModal } from './src/components/ReceiptModal';
+import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './src/data/initialData';
+import {
+  Category,
+  Product,
+  CartItem,
+  ShiftInfo,
+  PaymentEntry,
+  CompletedSale,
+} from './src/types';
+
+export default function App() {
+  // Estado de Turno de Caja (Onboarding directo en caja)
+  const [activeShift, setActiveShift] = useState<ShiftInfo | null>(null);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState<boolean>(true); // Abre modal de bienvenida/turno al arrancar
+
+  // Estado de Navegación Lateral
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [currentScreen, setCurrentScreen] = useState<string>('pos');
+
+  // Catálogo y Búsqueda
+  const [categories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [products] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Carrito de Transacción
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+
+  // Checkout y Ticket
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
+  const [lastCompletedSale, setLastCompletedSale] = useState<CompletedSale | null>(null);
+
+  // Manejadores de Turno
+  const handleStartShift = (cashierName: string, initialCash: number) => {
+    const newShift: ShiftInfo = {
+      cashierName,
+      initialCash,
+      startedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isActive: true,
+    };
+    setActiveShift(newShift);
+    setIsShiftModalOpen(false);
+  };
+
+  const handleResumeShift = () => {
+    setIsShiftModalOpen(false);
+  };
+
+  const handleCloseShift = () => {
+    setActiveShift(null);
+  };
+
+  // Manejadores de Catálogo / Carrito
+  const handleAddProduct = (product: Product) => {
+    setCartItems((prevItems) => {
+      const existingIndex = prevItems.findIndex(
+        (it) => it.product.id === product.id && it.unitPrice === product.basePrice && it.discount === 0
+      );
+
+      if (existingIndex >= 0) {
+        const updated = [...prevItems];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + 1,
+        };
+        return updated;
+      }
+
+      const newItem: CartItem = {
+        cartItemId: `${product.id}-${Date.now()}`,
+        product,
+        quantity: 1,
+        unitPrice: product.basePrice,
+        discount: 0,
+      };
+      return [...prevItems, newItem];
+    });
+  };
+
+  const handleIncrementQty = (cartItemId: string) => {
+    setCartItems((prev) =>
+      prev.map((it) =>
+        it.cartItemId === cartItemId ? { ...it, quantity: it.quantity + 1 } : it
+      )
+    );
+  };
+
+  const handleDecrementQty = (cartItemId: string) => {
+    setCartItems((prev) =>
+      prev
+        .map((it) =>
+          it.cartItemId === cartItemId ? { ...it, quantity: it.quantity - 1 } : it
+        )
+        .filter((it) => it.quantity > 0)
+    );
+  };
+
+  const handleRemoveItem = (cartItemId: string) => {
+    setCartItems((prev) => prev.filter((it) => it.cartItemId !== cartItemId));
+  };
+
+  const handleSaveItemEdit = (
+    cartItemId: string,
+    newPrice: number,
+    newDiscount: number
+  ) => {
+    setCartItems((prev) =>
+      prev.map((it) =>
+        it.cartItemId === cartItemId
+          ? { ...it, unitPrice: newPrice, discount: newDiscount }
+          : it
+      )
+    );
+  };
+
+  // Manejadores de Cobro
+  const subtotal = cartItems.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
+  const discountTotal = cartItems.reduce((acc, it) => acc + it.discount * it.quantity, 0);
+  const totalAmount = Math.max(0, subtotal - discountTotal);
+
+  const handleFinishSale = (
+    payments: PaymentEntry[],
+    totalReceived: number,
+    change: number
+  ) => {
+    const sale: CompletedSale = {
+      id: `VTA-${Date.now()}`,
+      timestamp: new Date().toLocaleString(),
+      items: [...cartItems],
+      subtotal,
+      discountTotal,
+      total: totalAmount,
+      payments,
+      totalReceived,
+      changeGiven: change,
+    };
+
+    setLastCompletedSale(sale);
+    setCartItems([]);
+    setIsCheckoutOpen(false);
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
+
+      {/* Barra Superior con botón hamburguesa */}
+      <Header
+        onToggleSidebar={() => setIsSidebarOpen(true)}
+        activeShift={activeShift}
+        onOpenShiftModal={() => setIsShiftModalOpen(true)}
+      />
+
+      {/* Contenido Principal de Caja (POS) */}
+      <View style={styles.posContainer}>
+        {/* Catálogo con categorías y buscador */}
+        <ProductCatalog
+          categories={categories}
+          products={products}
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={setSelectedCategoryId}
+          searchQuery={searchQuery}
+          onChangeSearchQuery={setSearchQuery}
+          onAddProduct={handleAddProduct}
+        />
+
+        {/* Panel Lateral de Venta / Carrito */}
+        <TransactionCart
+          items={cartItems}
+          onIncrementQty={handleIncrementQty}
+          onDecrementQty={handleDecrementQty}
+          onRemoveItem={handleRemoveItem}
+          onEditItem={(item) => setEditingItem(item)}
+          onClearCart={() => setCartItems([])}
+          onOpenCheckout={() => setIsCheckoutOpen(true)}
+        />
+      </View>
+
+      {/* Menú Lateral Colapsable */}
+      <SidebarDrawer
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        activeShift={activeShift}
+        onOpenShiftModal={() => setIsShiftModalOpen(true)}
+        currentScreen={currentScreen}
+        onSelectScreen={setCurrentScreen}
+      />
+
+      {/* Modal Onboarding / Control de Turno */}
+      <ShiftModal
+        visible={isShiftModalOpen}
+        activeShift={activeShift}
+        onStartShift={handleStartShift}
+        onResumeShift={handleResumeShift}
+        onCloseShift={handleCloseShift}
+      />
+
+      {/* Modal de Edición de Precios / Descuentos por producto */}
+      <EditItemModal
+        visible={!!editingItem}
+        item={editingItem}
+        onClose={() => setEditingItem(null)}
+        onSave={handleSaveItemEdit}
+      />
+
+      {/* Modal de Cobro & Métodos de Pago */}
+      <CheckoutModal
+        visible={isCheckoutOpen}
+        totalAmount={totalAmount}
+        onClose={() => setIsCheckoutOpen(false)}
+        onFinishSale={handleFinishSale}
+      />
+
+      {/* Modal de Ticket Térmico Generado */}
+      <ReceiptModal
+        sale={lastCompletedSale}
+        onClose={() => setLastCompletedSale(null)}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  posContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+});

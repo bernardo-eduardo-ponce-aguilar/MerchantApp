@@ -1,0 +1,64 @@
+name: CI/CD Pipeline - MerchantFlowApp
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/MerchantFlowApp/**'
+      - '.github/workflows/merchantflow-app.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'apps/MerchantFlowApp/**'
+
+defaults:
+  run:
+    working-directory: apps/MerchantFlowApp
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & TypeCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/MerchantFlowApp/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: TypeScript Check
+        run: npx tsc --noEmit
+
+  build-web:
+    name: Build Web Distribution
+    needs: lint-and-typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/MerchantFlowApp/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Export Web
+        run: npx expo export --platform web
+
+      - name: Upload Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-web-dist
+          path: apps/MerchantFlowApp/dist/
