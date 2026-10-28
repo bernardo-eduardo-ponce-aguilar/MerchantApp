@@ -8,7 +8,6 @@ import {
   TextInput,
   ScrollView,
   useWindowDimensions,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +30,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
   onCloseShift,
 }) => {
   const { theme } = useTheme();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const [cashierName, setCashierName] = useState(activeShift?.cashierName || 'Cajero Principal');
   const [initialCash, setInitialCash] = useState(
     activeShift ? activeShift.initialCash.toString() : '500.00'
@@ -42,29 +41,33 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
     onStartShift(cashierName.trim() || 'Cajero 1', cash);
   };
 
+  const isLandscapeMobile = height < 500;
+  const modalHeight = isLandscapeMobile ? height * 0.94 : Math.min(height * 0.85, 540);
+  const modalWidth = Math.min(width * 0.94, 460);
+
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={styles.overlay}>
         <View
           style={[
             styles.card,
             {
               backgroundColor: theme.surface,
-              maxHeight: height > 500 ? '90%' : '96%',
+              height: modalHeight,
+              width: modalWidth,
             },
           ]}
         >
           <ScrollView
-            showsVerticalScrollIndicator={true}
+            style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.header}>
               <View style={[styles.iconCircle, { backgroundColor: theme.primaryLight }]}>
-                <Ionicons name="cash-outline" size={26} color={theme.primary} />
+                <Ionicons name="cash-outline" size={24} color={theme.primary} />
               </View>
               <Text style={[styles.title, { color: theme.text }]}>Control de Turno de Caja</Text>
               <Text style={[styles.subtitle, { color: theme.textSubtle }]}>
@@ -129,7 +132,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
             )}
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -140,45 +143,49 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 10,
+    padding: 8,
   },
   card: {
     borderRadius: 16,
-    width: '100%',
-    maxWidth: 460,
     overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
     ...Platform.select({
       web: {
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
       },
       default: {
         elevation: 8,
       },
     }),
   },
+  scrollArea: {
+    flex: 1,
+  },
   scrollContent: {
-    padding: 20,
+    padding: 18,
+    paddingBottom: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
   },
   subtitle: {
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 3,
     lineHeight: 16,
   },
   form: {
@@ -186,13 +193,13 @@ const styles = StyleSheet.create({
   },
   activeShiftBox: {
     borderRadius: 12,
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 5,
   },
   infoLabel: {
     fontSize: 13,
@@ -205,22 +212,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,
-    marginTop: 8,
+    marginTop: 6,
   },
   input: {
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     fontSize: 14,
   },
   primaryBtn: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 11,
     borderRadius: 8,
-    marginTop: 16,
+    marginTop: 14,
   },
   primaryBtnText: {
     color: '#FFFFFF',

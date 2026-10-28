@@ -8,7 +8,6 @@ import {
   TextInput,
   ScrollView,
   useWindowDimensions,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +28,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onFinishSale,
 }) => {
   const { theme } = useTheme();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('EFECTIVO');
   const [cashReceived, setCashReceived] = useState(totalAmount.toString());
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
@@ -62,24 +61,28 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const quickAmounts = [50, 100, 200, 500, 1000];
 
+  // Calculamos la altura disponible para el modal:
+  // En móviles apaisados (height < 500px), usamos casi toda la altura para que el scroll tenga espacio real.
+  const isLandscapeMobile = height < 500;
+  const modalHeight = isLandscapeMobile ? height * 0.94 : Math.min(height * 0.88, 620);
+  const modalWidth = Math.min(width * 0.94, 520);
+
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
         <View
           style={[
             styles.card,
             {
               backgroundColor: theme.surface,
-              maxHeight: height > 500 ? '90%' : '96%',
+              height: modalHeight,
+              width: modalWidth,
             },
           ]}
         >
-          {/* Header fijo */}
+          {/* Header fijo superior */}
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: theme.text }]}>Cobro de Transacción</Text>
               <Text style={[styles.subtitle, { color: theme.textSubtle }]}>
                 Selecciona método y registra el pago
@@ -90,17 +93,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Banner compacto de total */}
+          {/* Banner compacto del total */}
           <View style={styles.totalBanner}>
             <Text style={styles.totalLabel}>TOTAL A PAGAR</Text>
             <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
           </View>
 
-          {/* Cuerpo con Scroll completo */}
+          {/* ScrollView con flex: 1 para ocupar todo el espacio entre el banner y el botón de cobrar */}
           <ScrollView
-            style={styles.scrollBody}
+            style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
             keyboardShouldPersistTaps="handled"
           >
             {/* Métodos de Pago */}
@@ -228,8 +232,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </View>
           </ScrollView>
 
-          {/* Footer de Acciones siempre visible y anclado al fondo */}
-          <View style={[styles.footer, { borderTopColor: theme.border }]}>
+          {/* Footer fijo con botón Cobrar siempre anclado */}
+          <View style={[styles.footer, { borderTopColor: theme.border, backgroundColor: theme.surface }]}>
             <TouchableOpacity
               style={[
                 styles.finishBtn,
@@ -239,14 +243,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               disabled={remaining > 0}
               onPress={handleComplete}
             >
-              <Ionicons name="checkmark-circle" size={22} color="#FFF" style={{ marginRight: 8 }} />
+              <Ionicons name="checkmark-circle" size={20} color="#FFF" style={{ marginRight: 8 }} />
               <Text style={styles.finishBtnText}>
                 {remaining > 0 ? `Faltan $${remaining.toFixed(2)}` : 'Cobrar e Imprimir Ticket'}
               </Text>
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -254,26 +258,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 10,
+    padding: 8,
   },
   card: {
     borderRadius: 16,
-    width: '100%',
-    maxWidth: 520,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    paddingTop: 12,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+      },
+      default: {
+        elevation: 10,
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   title: {
@@ -285,15 +294,12 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   closeBtn: {
-    padding: 6,
+    padding: 4,
   },
   totalBanner: {
     backgroundColor: '#1E293B',
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 16,
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -305,23 +311,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   totalValue: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
     color: '#FFFFFF',
   },
-  scrollBody: {
+  scrollArea: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,
     paddingVertical: 10,
+    paddingBottom: 20,
   },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     marginBottom: 6,
-    marginTop: 2,
+    marginTop: 4,
   },
   methodsRow: {
     flexDirection: 'row',
@@ -448,7 +455,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 11,
     borderRadius: 10,
   },
   finishBtnText: {
