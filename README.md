@@ -12,59 +12,122 @@ Para optimizar los pipelines de **CI/CD independientes**, despliegues aislados y
 MerchantFlow/
 ├── apps/
 │   ├── MerchantFlowPOS/   # Terminal POS táctil (Android / Web) - ✅ Versión activa
-│   └── MerchantFlowApp/   # Aplicación operativa y administrativa
+│   └── MerchantFlowApp/   # Aplicación de gestión y Backoffice operativo
 ├── .github/workflows/
 │   ├── merchantflow-pos.yml # CI/CD automatizado independiente para POS
 │   └── merchantflow-app.yml # CI/CD automatizado independiente para App de Gestión
 ├── docs/
-│   └── DATA_PERSISTENCE_STRATEGY.md # Arquitectura Offline-First y Base de Datos
+│   ├── DATABASE_DESIGN_SAAS_BACKOFFICE.md # Diseño multitenant SaaS & Backoffice
+│   ├── DATA_PERSISTENCE_STRATEGY.md       # Arquitectura Offline-First y Local DB
+│   └── schema.sql                         # Script DDL relacional para PostgreSQL
 └── README.md
 ```
 
-> 💡 **Nota sobre Repositorios:** Si se prefiere dividir físicamente en dos repositorios de GitHub independientes (`MerchantFlowPOS.git` y `MerchantFlowApp.git`), cada carpeta dentro de `apps/` ya cuenta con su propio `package.json`, TypeScript, configuración Expo y dependencias aisladas para ser movidas a su propio repo de forma inmediata.
+---
+
+## 🗄️ Funcionamiento de la Base de Datos para Ambos Proyectos
+
+El ecosistema opera bajo un modelo híbrido **Cloud Central (PostgreSQL) + Local Offline-First (SQLite en Terminal)**:
+
+```mermaid
+flowchart TD
+    subgraph SaaS_Admin [Portal SaaS Admin]
+        AdminWeb[Super Admin Web]
+    end
+
+    subgraph Store_Backoffice [MerchantFlowApp - Backoffice Tienda]
+        BackofficeWeb[Dashboard Gerencial Web / Móvil]
+    end
+
+    subgraph Cloud_Backend [Backend Central & API Gateway]
+        API[API REST & WebSockets\nFastAPI / Node.js]
+        CentralDB[(Base de Datos PostgreSQL\nMultitenant con Row Level Security)]
+    end
+
+    subgraph Terminal_POS [MerchantFlowPOS - Terminal Física]
+        POSApp[App React Native / Android]
+        LocalDB[(SQLite Local / Outbox)]
+    end
+
+    AdminWeb <-->|HTTPS Bearer Token| API
+    BackofficeWeb <-->|HTTPS JWT Tenant| API
+    API <--> CentralDB
+
+    POSApp <--> LocalDB
+    LocalDB <-->|Sync Worker Asíncrono\nHTTPS Delta Sync| API
+```
+
+### 1. `MerchantFlowApp` (Backoffice de Tienda y SaaS Admin)
+- **Conexión Directa a la Nube:** Opera conectado a la API central en tiempo real.
+- **SaaS Admin:** Aprovisiona tiendas (`tenants`), controla el límite de terminales contratadas (`pos_terminals.allowed_terminals_count`) y monitorea dispositivos vinculados (`device_bindings`).
+- **Backoffice Tienda:**
+  - Gestiona catálogo (`products`, `categories`), promociones (`discounts`) y personalización (`store_settings`).
+  - **Régimen de Impuestos Personalizable:** Permite configurar si la tienda opera bajo **Público en General** (precios netos sin desglose de IVA) o con **Desglose de Impuestos** (`tax_scheme = 'ITEMIZED_TAX'`), reflejándose en tickets impresos y reportes.
+  - Administra usuarios y define el **PIN numérico de 4 a 6 dígitos** (`cashier_pin`) para cada cajero.
+  - Monitorea en vivo el **Dashboard de Cortes de Caja** (`cash_cuts`), ventas por hora y arqueos de turnos (`shifts`).
+
+### 2. `MerchantFlowPOS` (Terminal de Punto de Venta)
+- **Operación Local Ininterrumpida:** La terminal almacena en SQLite local el catálogo de productos y valida los PINs de los cajeros en milisegundos sin requerir conexión a internet activa.
+- **Alternancia de Formas de Pago Mixtas:** Permite registrar múltiples abonos por venta (`transaction_payments`), combinando efectivo, tarjetas y transferencias hasta cubrir el saldo.
+- **Sincronización Outbox:** Cada venta se guarda localmente con estado `PENDING_SYNC` y un worker en segundo plano sincroniza las transacciones con el backend central tan pronto detecta red.
 
 ---
 
-## 🗄️ Persistencia de Datos & Sincronización en la Nube
+## 🌐 Diseño del API (Endpoints Principales)
 
-Para garantizar que el punto de venta funcione sin interrupciones incluso sin conexión a internet, se definió una arquitectura **Offline-First**:
-- **Base de Datos Local:** Implementación en SQLite / WatermelonDB en el cliente.
-- **Patrón Outbox:** Registro instantáneo de ventas con estado `PENDING_SYNC` y subida asíncrona mediante workers al detectar red.
-- **Consultas Delta Sync:** Descarga incremental de cambios en catálogo y precios.
-- Consulta los detalles completos del esquema relacional y protocolos en [DATA_PERSISTENCE_STRATEGY.md](file:///c:/Users/Usuario/Documents/personal_devs/MerchantFlow/docs/DATA_PERSISTENCE_STRATEGY.md).
+La API sigue un estándar RESTful con autenticación JWT y encabezado de identificación de terminal:
 
----
+### 1. Módulo SaaS Admin
+- `POST /api/v1/saas/tenants`: Registra una nueva tienda con su cuenta maestra y número de cajas autorizadas.
+- `GET /api/v1/saas/tenants/{tenant_id}/terminals`: Lista las cajas contratadas y códigos de vinculación.
+- `POST /api/v1/saas/terminals/{terminal_id}/revoke`: Revoca la licencia de un dispositivo vinculado.
 
-## 🖥️ Módulo `MerchantFlowPOS` (Terminal de Punto de Venta)
+### 2. Módulo de Enrolamiento de Hardware & Dispositivos (POS)
+- `POST /api/v1/pos/enroll`:
+  - **Payload:** `{ enrollment_key, device_uuid, device_model, os_version, app_version }`
+  - **Respuesta:** Token de terminal firmado (`terminal_token`) y configuración de la tienda.
 
-Ubicado en `apps/MerchantFlowPOS/`, implementa el prototipo funcional de la terminal de cobro.
+### 3. Módulo de Backoffice Tienda (Gestión y Personalización)
+- `POST /api/v1/tenant/auth/login`: Autenticación del administrador de tienda (devuelve JWT con `tenant_id` y `role`).
+- `GET / PUT /api/v1/tenant/settings`: Lee y actualiza la personalización del ticket, logo y esquema tributario (`tax_scheme: 'GENERAL_PUBLIC' | 'ITEMIZED_TAX'`).
+- `CRUD /api/v1/tenant/products`: Administración de productos, códigos de barras, precios y costos.
+- `CRUD /api/v1/tenant/users`: Alta y baja de cajeros y actualización de su `cashier_pin`.
+- `GET /api/v1/tenant/dashboard/cash-cuts`: Historial y resumen analítico de cortes de caja (X y Z).
 
-### 🚀 Flujo de Onboarding & Operación Directa en Caja
-1. **Arranque Inmediato en Caja:**
-   - La aplicación inicia directamente en la interfaz de caja.
-   - Presenta un modal inicial de **Control de Turno**, permitiendo **"Empezar turno"** (ingresando cajero y fondo inicial) o **"Retomar turno activo"** si ya había uno abierto.
-2. **Panel Lateral Colapsable (Menú de Hamburguesa):**
-   - Accionable desde la esquina superior izquierda.
-   - Incluye viñetas de navegación:
-     - 🛒 *Punto de Venta / Caja (Principal)*
-     - 🍽️ *Comandas & Cocina (Flujo opcional)*
-     - 💼 *Control de Turno (Estado de apertura/cierre)*
-     - 🖨️ *Impresoras (Bluetooth / USB)*
-     - ⚙️ *Configuración POS*
-3. **Catálogo Intuitivo y Selección de Productos:**
-   - Filtro horizontal dinámico por **categorías** (Bebidas, Alimentos, Cafetería, Postres, Abarrotes, etc.).
-   - **Buscador en tiempo real** por nombre o código de barra.
-   - Al tocar cualquier producto, se añade automáticamente al carrito/transacción sumando cantidades.
-4. **Edición Flexible de Precios y Descuentos:**
-   - Cada producto en el carrito cuenta con un botón de edición para ajustar el **precio unitario** o aplicar un **descuento** en vivo para la venta actual.
-5. **Simulación de Cobro y Métodos de Pago:**
-   - Opciones de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`.
-   - Botones rápidos de denominaciones y pago exacto.
-   - Cálculo y visualización en tiempo real de:
-     - **Monto cubierto**
-     - **Faltante por cubrir** (bloquea la finalización si no está saldado)
-     - **Cambio / Vuelto**
-   - Al completar el cobro, se emite una simulación de **ticket de venta térmico** con desglose completo.
+### 4. Módulo de Sincronización POS (Sync Protocol)
+- `GET /api/v1/pos/sync/pull?last_pulled_at=TIMESTAMP`: Descarga incremental de productos, precios, descuentos y cajeros activos.
+- `POST /api/v1/pos/sync/push`: Subida por lotes de transacciones finalizadas y turnos cerrados:
+  ```json
+  {
+    "shifts": [
+      {
+        "id": "uuid-shift-1",
+        "cashier_user_id": "uuid-user-3",
+        "opening_cash": 500.00,
+        "counted_cash": 1850.00,
+        "opened_at": "2026-10-28T08:00:00Z",
+        "closed_at": "2026-10-28T16:00:00Z"
+      }
+    ],
+    "transactions": [
+      {
+        "id": "uuid-trans-101",
+        "shift_id": "uuid-shift-1",
+        "folio": "FOL-10023",
+        "subtotal": 450.00,
+        "is_tax_itemized": false,
+        "taxes_total": 0.00,
+        "total": 450.00,
+        "total_received": 500.00,
+        "change_given": 50.00,
+        "payments": [
+          { "method": "TARJETA_DEBITO", "amount_tendered": 250.00, "amount_applied": 250.00 },
+          { "method": "EFECTIVO", "amount_tendered": 250.00, "amount_applied": 200.00, "change_amount": 50.00 }
+        ]
+      }
+    ]
+  }
+  ```
 
 ---
 
@@ -75,7 +138,7 @@ Ubicado en `apps/MerchantFlowPOS/`, implementa el prototipo funcional de la term
 - npm o yarn
 
 ### Pasos
-1. Entrar en la carpeta de la app:
+1. Entrar en la carpeta de la terminal:
    ```bash
    cd apps/MerchantFlowPOS
    ```
@@ -87,12 +150,3 @@ Ubicado en `apps/MerchantFlowPOS/`, implementa el prototipo funcional de la term
    ```bash
    npm run android
    ```
-
----
-
-## 🗺️ Roadmap de Periféricos & Hardware
-
-- [x] **Prototipo Core POS:** Flujo de turno, catálogo, carrito dinámico, ajuste de precios, pagos mixtos y cambio.
-- [ ] **Fase 1: Impresión Térmica:** Conexión nativa con impresoras ESC/POS vía Bluetooth Low Energy / Serial USB.
-- [ ] **Fase 2: Lectores de Código de Barra:** Detección de dispositivos USB HID / Bluetooth y escáner por cámara.
-- [ ] **Fase 3: MerchantFlowApp:** Panel administrativo centralizado.

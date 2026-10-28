@@ -65,7 +65,7 @@ CREATE TABLE tenant_users (
     CONSTRAINT uk_tenant_user_email UNIQUE (tenant_id, email)
 );
 
--- Personalización de la Tienda y Tickets Térmicos
+-- Personalización de la Tienda, Tickets Térmicos y Régimen de Impuestos
 CREATE TABLE store_settings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID UNIQUE NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -74,6 +74,9 @@ CREATE TABLE store_settings (
     receipt_footer_text TEXT,
     logo_url TEXT,
     currency_symbol VARCHAR(10) NOT NULL DEFAULT 'MXN',
+    -- Configuración tributaria: Público general vs Desglose formal por venta
+    tax_scheme VARCHAR(30) NOT NULL DEFAULT 'GENERAL_PUBLIC' CHECK (tax_scheme IN ('GENERAL_PUBLIC', 'ITEMIZED_TAX')),
+    display_tax_breakdown_on_receipt BOOLEAN NOT NULL DEFAULT FALSE, -- Si false: precios netos finales sin desglose de impuestos
     tax_percentage DECIMAL(5,2) NOT NULL DEFAULT 16.00,
     enable_orders_kitchen BOOLEAN NOT NULL DEFAULT FALSE,
     primary_theme_color VARCHAR(20) DEFAULT '#2563EB',
@@ -102,6 +105,7 @@ CREATE TABLE products (
     description TEXT,
     current_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     cost_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    is_tax_exempt BOOLEAN NOT NULL DEFAULT FALSE, -- Producto exento de impuesto si aplica
     stock INT NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -156,10 +160,11 @@ CREATE TABLE transactions (
     transaction_folio VARCHAR(50) NOT NULL,
     subtotal DECIMAL(12,2) NOT NULL,
     discount_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-    taxes_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    is_tax_itemized BOOLEAN NOT NULL DEFAULT FALSE, -- Snapshot: si la venta requirió o mostró desglose tributario
+    taxes_total DECIMAL(12,2) NOT NULL DEFAULT 0.00, -- 0.00 si el esquema es exclusivamente público en general
     total DECIMAL(12,2) NOT NULL,
-    total_received DECIMAL(12,2) NOT NULL,
-    change_given DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    total_received DECIMAL(12,2) NOT NULL, -- Suma acumulada de todos los métodos de pago ingresados
+    change_given DECIMAL(12,2) NOT NULL DEFAULT 0.00, -- Cambio / vuelto entregado (solo aplicable sobre excedente en efectivo)
     payment_status VARCHAR(20) NOT NULL DEFAULT 'PAID' CHECK (payment_status IN ('PAID', 'REFUNDED', 'CANCELLED')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -180,14 +185,21 @@ CREATE TABLE transaction_items (
     line_total DECIMAL(12,2) NOT NULL
 );
 
--- Métodos de Pago por Venta (Mixtos)
+-- Múltiples Formas de Pago por Transacción (Pago Mixto / Fraccionado)
 CREATE TABLE transaction_payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
-    method VARCHAR(30) NOT NULL CHECK (method IN ('EFECTIVO', 'TARJETA', 'TRANSFERENCIA')),
-    amount DECIMAL(12,2) NOT NULL,
-    reference_auth VARCHAR(100) -- Folio de autorización voucher
+    payment_sequence INT NOT NULL DEFAULT 1, -- Orden en el que se registraron los abonos
+    method VARCHAR(30) NOT NULL CHECK (method IN ('EFECTIVO', 'TARJETA_DEBITO', 'TARJETA_CREDITO', 'TRANSFERENCIA', 'VALES', 'OTRO')),
+    amount_tendered DECIMAL(12,2) NOT NULL, -- Monto entregado/procesado con este método
+    amount_applied DECIMAL(12,2) NOT NULL,  -- Monto que cubrió la venta (sin contar el cambio de efectivo)
+    change_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00, -- Cambio generado específicamente por este método (si es efectivo)
+    reference_auth VARCHAR(100), -- Folio de autorización voucher/bancario
+    terminal_lot_number VARCHAR(50), -- Lote de terminal bancaria externa
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_payments_transaction ON transaction_payments (transaction_id);
 
 -- Cortes de Caja (Dashboard y Auditoría Financiera)
 CREATE TABLE cash_cuts (
@@ -198,6 +210,7 @@ CREATE TABLE cash_cuts (
     total_sales_cash DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     total_sales_card DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     total_sales_transfer DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    total_sales_others DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     total_sales DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     cash_withdrawals DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     cash_deposits DECIMAL(12,2) NOT NULL DEFAULT 0.00,
