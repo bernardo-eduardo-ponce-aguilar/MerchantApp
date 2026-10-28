@@ -5,11 +5,14 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Header } from './src/components/Header';
 import { SidebarDrawer } from './src/components/SidebarDrawer';
 import { ProductCatalog } from './src/components/ProductCatalog';
 import { TransactionCart } from './src/components/TransactionCart';
+import { PortraitCartBar } from './src/components/PortraitCartBar';
+import { TransactionCartModal } from './src/components/TransactionCartModal';
 import { ShiftModal } from './src/components/ShiftModal';
 import { EditItemModal } from './src/components/EditItemModal';
 import { CheckoutModal } from './src/components/CheckoutModal';
@@ -27,6 +30,10 @@ import {
 
 function POSAppContent() {
   const { theme, isDark } = useTheme();
+  const { width, height } = useWindowDimensions();
+
+  // Detección reactiva de orientación: Landscape (ancho >= alto) vs Portrait
+  const isLandscape = width >= height;
 
   // Estado de Turno de Caja (Onboarding directo en caja)
   const [activeShift, setActiveShift] = useState<ShiftInfo | null>(null);
@@ -45,6 +52,7 @@ function POSAppContent() {
   // Carrito de Transacción
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+  const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false);
 
   // Checkout y Ticket
   const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
@@ -133,10 +141,11 @@ function POSAppContent() {
     );
   };
 
-  // Manejadores de Cobro
+  // Totales
   const subtotal = cartItems.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
   const discountTotal = cartItems.reduce((acc, it) => acc + it.discount * it.quantity, 0);
   const totalAmount = Math.max(0, subtotal - discountTotal);
+  const totalItemCount = cartItems.reduce((acc, it) => acc + it.quantity, 0);
 
   const handleFinishSale = (
     payments: PaymentEntry[],
@@ -172,7 +181,13 @@ function POSAppContent() {
       />
 
       {/* Contenido Principal de Caja (POS) */}
-      <View style={[styles.posContainer, { backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.posContainer,
+          { backgroundColor: theme.background },
+          isLandscape ? styles.posContainerLandscape : styles.posContainerPortrait,
+        ]}
+      >
         {/* Catálogo con categorías y buscador */}
         <ProductCatalog
           categories={categories}
@@ -184,17 +199,42 @@ function POSAppContent() {
           onAddProduct={handleAddProduct}
         />
 
-        {/* Panel Lateral de Venta / Carrito */}
-        <TransactionCart
-          items={cartItems}
-          onIncrementQty={handleIncrementQty}
-          onDecrementQty={handleDecrementQty}
-          onRemoveItem={handleRemoveItem}
-          onEditItem={(item) => setEditingItem(item)}
-          onClearCart={() => setCartItems([])}
+        {/* En modo Landscape: Panel lateral fijo del Carrito */}
+        {isLandscape && (
+          <TransactionCart
+            items={cartItems}
+            onIncrementQty={handleIncrementQty}
+            onDecrementQty={handleDecrementQty}
+            onRemoveItem={handleRemoveItem}
+            onEditItem={(item) => setEditingItem(item)}
+            onClearCart={() => setCartItems([])}
+            onOpenCheckout={() => setIsCheckoutOpen(true)}
+          />
+        )}
+      </View>
+
+      {/* En modo Portrait (rotación deshabilitada): Barra inferior miniatura con total, conteo y pase a cobro */}
+      {!isLandscape && (
+        <PortraitCartBar
+          itemCount={totalItemCount}
+          total={totalAmount}
+          onOpenCartModal={() => setIsCartModalOpen(true)}
           onOpenCheckout={() => setIsCheckoutOpen(true)}
         />
-      </View>
+      )}
+
+      {/* Modal responsivo del carrito para modo vertical/portrait */}
+      <TransactionCartModal
+        visible={isCartModalOpen && !isLandscape}
+        onClose={() => setIsCartModalOpen(false)}
+        items={cartItems}
+        onIncrementQty={handleIncrementQty}
+        onDecrementQty={handleDecrementQty}
+        onRemoveItem={handleRemoveItem}
+        onEditItem={(item) => setEditingItem(item)}
+        onClearCart={() => setCartItems([])}
+        onOpenCheckout={() => setIsCheckoutOpen(true)}
+      />
 
       {/* Menú Lateral Colapsable */}
       <SidebarDrawer
@@ -255,6 +295,11 @@ const styles = StyleSheet.create({
   },
   posContainer: {
     flex: 1,
+  },
+  posContainerLandscape: {
     flexDirection: 'row',
+  },
+  posContainerPortrait: {
+    flexDirection: 'column',
   },
 });

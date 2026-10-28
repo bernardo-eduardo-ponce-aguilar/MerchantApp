@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Category, Product } from '../types';
@@ -32,6 +33,11 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   onAddProduct,
 }) => {
   const { theme } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width >= height;
+
+  // En Landscape se usan 3 o 4 columnas; en Portrait pantallas estrechas se usan 2 columnas
+  const numColumns = isLandscape ? (width > 1000 ? 4 : 3) : (width > 600 ? 3 : 2);
 
   const filteredProducts = products.filter((prod) => {
     const matchesCategory =
@@ -103,11 +109,12 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
         </ScrollView>
       </View>
 
-      {/* Grid de Productos */}
+      {/* Grid de Productos Responsivo */}
       <FlatList
+        key={numColumns} // Forzar re-render de FlatList cuando cambian las columnas
         data={filteredProducts}
         keyExtractor={(item) => item.id}
-        numColumns={3}
+        numColumns={numColumns}
         contentContainerStyle={styles.productsGrid}
         columnWrapperStyle={styles.columnWrapper}
         ListEmptyComponent={
