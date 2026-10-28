@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PaymentMethodType, PaymentEntry } from '../types';
@@ -26,6 +28,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onFinishSale,
 }) => {
   const { theme } = useTheme();
+  const { height, width } = useWindowDimensions();
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('EFECTIVO');
   const [cashReceived, setCashReceived] = useState(totalAmount.toString());
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
@@ -58,28 +61,52 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const quickAmounts = [50, 100, 200, 500, 1000];
 
+  // Calculamos la altura disponible para el modal:
+  // En móviles apaisados (height < 500px), usamos casi toda la altura para que el scroll tenga espacio real.
+  const isLandscapeMobile = height < 500;
+  const modalHeight = isLandscapeMobile ? height * 0.94 : Math.min(height * 0.88, 620);
+  const modalWidth = Math.min(width * 0.94, 520);
+
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: theme.surface }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.surface,
+              height: modalHeight,
+              width: modalWidth,
+            },
+          ]}
+        >
+          {/* Header fijo superior */}
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: theme.text }]}>Cobro de Transacción</Text>
-              <Text style={[styles.subtitle, { color: theme.textSubtle }]}>Selecciona método y registra el pago</Text>
+              <Text style={[styles.subtitle, { color: theme.textSubtle }]}>
+                Selecciona método y registra el pago
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color={theme.textSubtle} />
             </TouchableOpacity>
           </View>
 
-          {/* Gran Total a Pagar */}
+          {/* Banner compacto del total */}
           <View style={styles.totalBanner}>
             <Text style={styles.totalLabel}>TOTAL A PAGAR</Text>
             <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
           </View>
 
-          <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+          {/* ScrollView con flex: 1 para ocupar todo el espacio entre el banner y el botón de cobrar */}
+          <ScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Métodos de Pago */}
             <Text style={[styles.sectionTitle, { color: theme.textSubtle }]}>Método de Pago</Text>
             <View style={styles.methodsRow}>
@@ -103,7 +130,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   >
                     <Ionicons
                       name={iconName as any}
-                      size={22}
+                      size={20}
                       color={isSelected ? theme.primary : theme.textSubtle}
                     />
                     <Text
@@ -121,7 +148,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </View>
 
             {/* Input Cantidad Recibida */}
-            <Text style={[styles.sectionTitle, { color: theme.textSubtle }]}>Cantidad Recibida ($ MXN)</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textSubtle }]}>
+              Cantidad Recibida ($ MXN)
+            </Text>
             <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
               <Text style={[styles.currencySymbol, { color: theme.textSubtle }]}>$</Text>
               <TextInput
@@ -192,7 +221,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </View>
               ) : (
                 <View style={[styles.breakdownRow, styles.changeRow, { backgroundColor: theme.successLight }]}>
-                  <Text style={[styles.breakdownLabel, { color: theme.success, fontWeight: '700' }]}>CAMBIO (VUELTO):</Text>
+                  <Text style={[styles.breakdownLabel, { color: theme.success, fontWeight: '700' }]}>
+                    CAMBIO (VUELTO):
+                  </Text>
                   <Text style={[styles.breakdownValue, { color: theme.success, fontWeight: '800', fontSize: 18 }]}>
                     ${change.toFixed(2)}
                   </Text>
@@ -201,8 +232,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </View>
           </ScrollView>
 
-          {/* Footer de Acciones */}
-          <View style={styles.footer}>
+          {/* Footer fijo con botón Cobrar siempre anclado */}
+          <View style={[styles.footer, { borderTopColor: theme.border, backgroundColor: theme.surface }]}>
             <TouchableOpacity
               style={[
                 styles.finishBtn,
@@ -212,7 +243,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               disabled={remaining > 0}
               onPress={handleComplete}
             >
-              <Ionicons name="checkmark-circle" size={22} color="#FFF" style={{ marginRight: 8 }} />
+              <Ionicons name="checkmark-circle" size={20} color="#FFF" style={{ marginRight: 8 }} />
               <Text style={styles.finishBtnText}>
                 {remaining > 0 ? `Faltan $${remaining.toFixed(2)}` : 'Cobrar e Imprimir Ticket'}
               </Text>
@@ -227,40 +258,51 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 8,
   },
   card: {
     borderRadius: 16,
-    width: '100%',
-    maxWidth: 500,
-    padding: 20,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+      },
+      default: {
+        elevation: 10,
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 14,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
   },
   subtitle: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
   },
   closeBtn: {
     padding: 4,
   },
   totalBanner: {
     backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 14,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
   totalLabel: {
     fontSize: 11,
@@ -269,35 +311,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   totalValue: {
-    fontSize: 28,
+    fontSize: 19,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginTop: 2,
+  },
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingBottom: 20,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: 6,
     marginTop: 4,
   },
   methodsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   methodCard: {
     flex: 1,
     borderWidth: 1.5,
-    borderRadius: 10,
-    paddingVertical: 10,
+    borderRadius: 8,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   methodText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 3,
   },
   methodTextActive: {
     fontWeight: '700',
@@ -306,52 +355,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    marginBottom: 12,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
   },
   currencySymbol: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     marginRight: 6,
   },
   amountInput: {
     flex: 1,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   quickCashRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 14,
+    marginBottom: 10,
+    flexWrap: 'wrap',
   },
   quickCashBtnExact: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
   quickCashExactText: {
     color: '#FFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   quickCashBtn: {
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
   },
   quickCashText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   paymentsList: {
-    padding: 10,
+    padding: 8,
     borderRadius: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   paymentRowItem: {
     flexDirection: 'row',
@@ -366,48 +416,50 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   summaryBreakdown: {
-    padding: 14,
-    borderRadius: 10,
+    padding: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    marginVertical: 6,
+    marginVertical: 4,
   },
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   breakdownLabel: {
-    fontSize: 13,
+    fontSize: 12,
   },
   breakdownValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   alertRow: {
-    padding: 8,
+    padding: 6,
     borderRadius: 6,
     marginTop: 4,
     marginBottom: 0,
   },
   changeRow: {
-    padding: 8,
+    padding: 6,
     borderRadius: 6,
     marginTop: 4,
     marginBottom: 0,
   },
   footer: {
-    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
   },
   finishBtn: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 11,
     borderRadius: 10,
   },
   finishBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
   },

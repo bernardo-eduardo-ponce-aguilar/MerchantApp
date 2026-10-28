@@ -6,6 +6,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CompletedSale } from '../types';
@@ -18,90 +20,108 @@ interface ReceiptModalProps {
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, onClose }) => {
   const { theme } = useTheme();
+  const { height } = useWindowDimensions();
 
   if (!sale) return null;
 
   return (
     <Modal visible={!!sale} transparent animationType="fade">
       <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: theme.surface }]}>
-          {/* Ticket Header */}
-          <View style={styles.ticketHeader}>
-            <Text style={[styles.storeName, { color: theme.text }]}>MERCHANTFLOW STORE</Text>
-            <Text style={[styles.ticketMeta, { color: theme.textSubtle }]}>Ticket de Venta #{sale.id.slice(-6)}</Text>
-            <Text style={[styles.ticketDate, { color: theme.textSubtle }]}>{sale.timestamp}</Text>
-          </View>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.surface,
+              maxHeight: height > 500 ? '90%' : '96%',
+            },
+          ]}
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Ticket Header */}
+            <View style={styles.ticketHeader}>
+              <Text style={[styles.storeName, { color: theme.text }]}>MERCHANTFLOW STORE</Text>
+              <Text style={[styles.ticketMeta, { color: theme.textSubtle }]}>
+                Ticket de Venta #{sale.id.slice(-6)}
+              </Text>
+              <Text style={[styles.ticketDate, { color: theme.textSubtle }]}>{sale.timestamp}</Text>
+            </View>
 
-          <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
+            <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
 
-          {/* Ticket Items */}
-          <ScrollView style={styles.itemsList}>
-            {sale.items.map((item) => (
-              <View key={item.cartItemId} style={styles.itemRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.itemName, { color: theme.text }]}>
-                    {item.quantity}x {item.product.name}
-                  </Text>
-                  {item.discount > 0 && (
-                    <Text style={[styles.itemDiscountText, { color: theme.success }]}>
-                      Dto: -${(item.discount * item.quantity).toFixed(2)}
+            {/* Ticket Items */}
+            <View style={styles.itemsList}>
+              {sale.items.map((item) => (
+                <View key={item.cartItemId} style={styles.itemRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.itemName, { color: theme.text }]}>
+                      {item.quantity}x {item.product.name}
                     </Text>
-                  )}
+                    {item.discount > 0 && (
+                      <Text style={[styles.itemDiscountText, { color: theme.success }]}>
+                        Dto: -${(item.discount * item.quantity).toFixed(2)}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[styles.itemTotal, { color: theme.text }]}>
+                    ${((item.unitPrice - item.discount) * item.quantity).toFixed(2)}
+                  </Text>
                 </View>
-                <Text style={[styles.itemTotal, { color: theme.text }]}>
-                  ${((item.unitPrice - item.discount) * item.quantity).toFixed(2)}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
-
-          {/* Totales */}
-          <View style={styles.totalSection}>
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.textSubtle }]}>Subtotal:</Text>
-              <Text style={[styles.summaryValue, { color: theme.text }]}>${sale.subtotal.toFixed(2)}</Text>
+              ))}
             </View>
-            {sale.discountTotal > 0 && (
+
+            <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
+
+            {/* Totales */}
+            <View style={styles.totalSection}>
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: theme.success }]}>Descuentos:</Text>
-                <Text style={[styles.summaryValue, { color: theme.success }]}>-${sale.discountTotal.toFixed(2)}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.textSubtle }]}>Subtotal:</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>${sale.subtotal.toFixed(2)}</Text>
               </View>
-            )}
-            <View style={[styles.summaryRow, { marginTop: 4 }]}>
-              <Text style={[styles.grandTotalLabel, { color: theme.text }]}>TOTAL:</Text>
-              <Text style={[styles.grandTotalValue, { color: theme.primary }]}>${sale.total.toFixed(2)}</Text>
-            </View>
-          </View>
-
-          <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
-
-          {/* Pagos Recibidos y Vuelto */}
-          <View style={styles.paymentSection}>
-            {sale.payments.map((p, index) => (
-              <View key={index} style={styles.summaryRow}>
-                <Text style={[styles.paymentMethod, { color: theme.textSubtle }]}>Pago ({p.method}):</Text>
-                <Text style={[styles.paymentAmount, { color: theme.text }]}>${p.amountReceived.toFixed(2)}</Text>
+              {sale.discountTotal > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: theme.success }]}>Descuentos:</Text>
+                  <Text style={[styles.summaryValue, { color: theme.success }]}>
+                    -${sale.discountTotal.toFixed(2)}
+                  </Text>
+                </View>
+              )}
+              <View style={[styles.summaryRow, { marginTop: 4 }]}>
+                <Text style={[styles.grandTotalLabel, { color: theme.text }]}>TOTAL:</Text>
+                <Text style={[styles.grandTotalValue, { color: theme.primary }]}>${sale.total.toFixed(2)}</Text>
               </View>
-            ))}
-
-            <View style={[styles.summaryRow, { marginTop: 4 }]}>
-              <Text style={[styles.changeLabel, { color: theme.success }]}>CAMBIO ENTREGADO:</Text>
-              <Text style={[styles.changeAmount, { color: theme.success }]}>${sale.changeGiven.toFixed(2)}</Text>
             </View>
-          </View>
 
-          <View style={[styles.printerStatusBox, { backgroundColor: theme.successLight }]}>
-            <Ionicons name="print-outline" size={16} color={theme.success} />
-            <Text style={[styles.printerStatusText, { color: theme.success }]}>
-              Emisión de ticket térmico simulado con éxito (Bluetooth/USB)
-            </Text>
-          </View>
+            <View style={[styles.dividerDashed, { borderBottomColor: theme.border }]} />
 
-          <TouchableOpacity style={[styles.newSaleBtn, { backgroundColor: theme.primary }]} onPress={onClose}>
-            <Text style={styles.newSaleBtnText}>Iniciar Siguiente Venta</Text>
-          </TouchableOpacity>
+            {/* Pagos Recibidos y Vuelto */}
+            <View style={styles.paymentSection}>
+              {sale.payments.map((p, index) => (
+                <View key={index} style={styles.summaryRow}>
+                  <Text style={[styles.paymentMethod, { color: theme.textSubtle }]}>Pago ({p.method}):</Text>
+                  <Text style={[styles.paymentAmount, { color: theme.text }]}>${p.amountReceived.toFixed(2)}</Text>
+                </View>
+              ))}
+
+              <View style={[styles.summaryRow, { marginTop: 4 }]}>
+                <Text style={[styles.changeLabel, { color: theme.success }]}>CAMBIO ENTREGADO:</Text>
+                <Text style={[styles.changeAmount, { color: theme.success }]}>${sale.changeGiven.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            <View style={[styles.printerStatusBox, { backgroundColor: theme.successLight }]}>
+              <Ionicons name="print-outline" size={16} color={theme.success} />
+              <Text style={[styles.printerStatusText, { color: theme.success }]}>
+                Emisión de ticket térmico simulado con éxito (Bluetooth/USB)
+              </Text>
+            </View>
+
+            <TouchableOpacity style={[styles.newSaleBtn, { backgroundColor: theme.primary }]} onPress={onClose}>
+              <Text style={styles.newSaleBtnText}>Iniciar Siguiente Venta</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -114,116 +134,119 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 10,
   },
   card: {
     borderRadius: 12,
     width: '100%',
     maxWidth: 380,
-    padding: 20,
+    overflow: 'hidden',
+  },
+  scrollContent: {
+    padding: 16,
   },
   ticketHeader: {
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   storeName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: 1,
   },
   ticketMeta: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 2,
   },
   ticketDate: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 10,
+    marginTop: 1,
   },
   dividerDashed: {
     borderBottomWidth: 1,
     borderStyle: 'dashed',
-    marginVertical: 10,
+    marginVertical: 8,
   },
   itemsList: {
-    maxHeight: 180,
+    gap: 4,
   },
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   itemName: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
   },
   itemDiscountText: {
-    fontSize: 11,
+    fontSize: 10,
   },
   itemTotal: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   totalSection: {
-    gap: 4,
+    gap: 3,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: 11,
   },
   summaryValue: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   grandTotalLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
   },
   grandTotalValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
   },
   paymentSection: {
-    gap: 4,
+    gap: 3,
   },
   paymentMethod: {
-    fontSize: 12,
+    fontSize: 11,
   },
   paymentAmount: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   changeLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   changeAmount: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
   },
   printerStatusBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    padding: 8,
     borderRadius: 8,
-    marginTop: 14,
-    gap: 8,
+    marginTop: 10,
+    gap: 6,
   },
   printerStatusText: {
-    fontSize: 11,
+    fontSize: 10,
     flex: 1,
     fontWeight: '500',
   },
   newSaleBtn: {
-    paddingVertical: 12,
+    paddingVertical: 11,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 12,
   },
   newSaleBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
   },
