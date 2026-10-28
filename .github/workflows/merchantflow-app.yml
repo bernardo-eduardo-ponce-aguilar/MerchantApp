@@ -2,12 +2,12 @@ name: CI/CD Pipeline - MerchantFlowApp
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, preview ]
     paths:
       - 'apps/MerchantFlowApp/**'
       - '.github/workflows/merchantflow-app.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, preview ]
     paths:
       - 'apps/MerchantFlowApp/**'
 

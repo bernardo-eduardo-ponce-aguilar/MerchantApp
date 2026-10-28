@@ -2,12 +2,12 @@ name: CI/CD Pipeline - MerchantFlowPOS
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, preview ]
     paths:
       - 'apps/MerchantFlowPOS/**'
       - '.github/workflows/merchantflow-pos.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, preview ]
     paths:
       - 'apps/MerchantFlowPOS/**'
 
@@ -64,20 +64,40 @@ jobs:
           path: apps/MerchantFlowPOS/dist/
 
   build-android:
-    name: Android Preview (EAS Build)
-    if: github.ref == 'refs/heads/main'
+    name: Build Android (${{ github.ref == 'refs/heads/main' && 'Production AAB' || 'Preview APK' }})
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/preview'
     needs: lint-and-typecheck
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node & EAS
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install --global eas-cli
-      # - name: Trigger EAS Build
-      #   run: eas build --platform android --non-interactive
-      #   env:
-      #     EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          cache: 'npm'
+          cache-dependency-path: apps/MerchantFlowPOS/package-lock.json
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Determine EAS Profile
+        id: profile
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "eas_profile=production" >> $GITHUB_OUTPUT
+          else
+            echo "eas_profile=preview" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run EAS Build
+        run: eas build --platform android --profile ${{ steps.profile.outputs.eas_profile }} --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

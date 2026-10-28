@@ -1,41 +1,95 @@
-This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
+# Agent Guidelines - MerchantFlowApp
 
-## Expo has changed — do not trust your training data
+Este documento define la arquitectura, convenciones y directrices de trabajo para los agentes de IA y desarrolladores en `MerchantFlowApp`. Personaliza este archivo según evolucione la aplicación.
 
-Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
+---
 
-1. Read the major version of the `expo` package in `package.json`.
-2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
-3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
+## 1. Contexto y Propósito de la Aplicación
+`MerchantFlowApp` es la aplicación principal del comerciante / administrador (Backoffice y gestión de operaciones).
+- **Enfoque:** Dashboard administrativo, métricas de ventas, inventario, configuración de comercios y reportería.
+- **Plataformas objetivo:** Web y soporte móvil multi-plataforma.
 
-## Commands
+---
 
-Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
+## 2. Stack Tecnológico
+- **Framework:** Expo SDK (~58) / React Native 0.88 / React 19.
+- **Web Support:** `react-native-web` (exportación estática a `dist/`).
+- **Tipado:** TypeScript estricto (`tsc --noEmit`).
+- **Navegación:** Expo Router / React Navigation (según configuración del proyecto).
 
-```bash
-npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
-npx expo lint               # lint
-npx tsc --noEmit            # typecheck
-npx expo-doctor             # diagnose dependency and config issues
-npx expo install --fix      # fix incompatible package versions
+---
+
+## 3. Estructura de Carpetas
+```text
+apps/MerchantFlowApp/
+├── assets/             # Recursos estáticos, logos e iconografía
+├── App.tsx             # Componente raíz / Entrada
+├── app.json            # Metadatos del proyecto Expo
+└── package.json        # Dependencias y scripts
 ```
 
-Run lint and typecheck before declaring any task done.
+---
 
-## Navigation & Routing
+## 4. Convenciones de Desarrollo
+1. **Instalación de Dependencias:**
+   - Usar siempre el CLI de Expo para garantizar compatibilidad con el SDK:
+     ```bash
+     npx expo install <package>
+     ```
+2. **TypeScript Estricto:**
+   - Todo nuevo componente o módulo debe tener tipos definidos.
+   - Ejecutar verificación de tipos antes de concluir tareas:
+     ```bash
+     npx tsc --noEmit
+     ```
+3. **Continuous Native Generation (CNG):**
+   - Evitar crear directorios `android/` o `ios/` manuales. Las configuraciones nativas se definen en `app.json`.
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+---
 
-## Building with EAS
+## 5. Estrategia de Ramas Git y Flujo de Trabajo
+El proyecto opera con dos ramas principales: `main` y `preview`. No se permite el push directo a ninguna de ellas.
 
-Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
-Docs: https://docs.expo.dev/eas/index.md
+### Jerarquía de Ramas
+- **`main` (Producción Web):** Código estable en producción.
+  - Artefacto final: Bundle estático optimizado para el entorno productivo de la plataforma Web (`app-web-dist`).
+  - Solo recibe cambios mediante Pull Request (PR) provenientes de `preview`.
+- **`preview` (Staging / Entorno de Pruebas Web):**
+  - Artefacto de validación: Bundle web para desplegar en entorno de staging/preview (ej. Vercel Preview, Cloudflare Pages staging).
+  - Solo recibe cambios mediante PR aprobados de ramas temporales.
+- **Ramas temporales (`feature/*`, `fix/*`, `chore/*`):**
+  - Se originan a partir de `preview`.
+  - Al completarse el desarrollo, se crea un PR con destino a `preview`.
 
-## Rules
+### Flujo Operativo (Step-by-Step)
+```text
+[feature/nueva-vista] ---> (PR con checks) ---> [preview] (Bundle Web Staging)
+                                                     │
+                                               (PR validado)
+                                                     ▼
+                                                  [main] (Bundle Web Producción)
+```
 
-- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
-- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+1. **Crear rama:** `git checkout preview && git pull && git checkout -b feature/nombre-tarea`
+2. **Desarrollo y pruebas locales:** `npx tsc --noEmit` y `npx expo export --platform web`
+3. **Pull Request a `preview`:** El CI ejecuta los gates (Lint, Typecheck).
+4. **Merge a `preview`:** Se genera y almacena el artefacto web de staging (`app-web-dist`).
+5. **Aprobación de Release:** Se abre un Pull Request de `preview` hacia `main`.
+6. **Merge a `main`:** Se genera el artefacto final de producción listo para el servidor web/CDN.
+
+---
+
+## 6. Pipeline CI/CD
+- **Workflow:** `.github/workflows/merchantflow-app.yml`
+- **Quality Gates requeridos:**
+  - `npm ci`
+  - `npx tsc --noEmit`
+- **Artefactos generados:**
+  - `app-web-dist`: Bundle web estático compilado con `npx expo export --platform web`, ubicado en `apps/MerchantFlowApp/dist/`.
+
+---
+
+## 7. Personalizaciones del Proyecto
+<!-- Añade aquí tus notas personalizadas, endpoints de APIs o reglas de negocio futuras -->
+- [ ] Implementar autenticación y gestión de sesiones de comerciantes.
+- [ ] Conectar módulos de reportería y métricas en tiempo real.
