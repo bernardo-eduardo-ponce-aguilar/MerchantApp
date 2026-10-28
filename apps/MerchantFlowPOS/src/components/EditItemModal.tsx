@@ -6,6 +6,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  ScrollView,
+  useWindowDimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CartItem } from '../types';
@@ -25,6 +29,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   onSave,
 }) => {
   const { theme } = useTheme();
+  const { height } = useWindowDimensions();
 
   if (!item) return null;
 
@@ -42,58 +47,75 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <View>
-              <Text style={[styles.title, { color: theme.text }]}>Ajustar Precio / Descuento</Text>
-              <Text style={[styles.productName, { color: theme.textSubtle }]}>{item.product.name}</Text>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.surface,
+              maxHeight: height > 500 ? '90%' : '96%',
+            },
+          ]}
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.header}>
+              <View>
+                <Text style={[styles.title, { color: theme.text }]}>Ajustar Precio / Descuento</Text>
+                <Text style={[styles.productName, { color: theme.textSubtle }]}>{item.product.name}</Text>
+              </View>
+              <TouchableOpacity onPress={onClose}>
+                <Ionicons name="close" size={24} color={theme.textSubtle} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={theme.textSubtle} />
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.body}>
-            <Text style={[styles.label, { color: theme.textMuted }]}>Precio Unitario ($ MXN)</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="numeric"
-              placeholder="0.00"
-              placeholderTextColor={theme.textSubtle}
-            />
-            <Text style={[styles.hint, { color: theme.textSubtle }]}>
-              Precio base de catálogo: ${item.product.basePrice.toFixed(2)}
-            </Text>
+            <View style={styles.body}>
+              <Text style={[styles.label, { color: theme.textMuted }]}>Precio Unitario ($ MXN)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="numeric"
+                placeholder="0.00"
+                placeholderTextColor={theme.textSubtle}
+              />
+              <Text style={[styles.hint, { color: theme.textSubtle }]}>
+                Precio base de catálogo: ${item.product.basePrice.toFixed(2)}
+              </Text>
 
-            <Text style={[styles.label, { marginTop: 14, color: theme.textMuted }]}>Descuento por Unidad ($ MXN)</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
-              value={discount}
-              onChangeText={setDiscount}
-              keyboardType="numeric"
-              placeholder="0.00"
-              placeholderTextColor={theme.textSubtle}
-            />
+              <Text style={[styles.label, { marginTop: 12, color: theme.textMuted }]}>Descuento por Unidad ($ MXN)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
+                value={discount}
+                onChangeText={setDiscount}
+                keyboardType="numeric"
+                placeholder="0.00"
+                placeholderTextColor={theme.textSubtle}
+              />
 
-            <View style={[styles.previewBox, { backgroundColor: theme.primaryLight }]}>
-              <Text style={[styles.previewLabel, { color: theme.primary }]}>Precio Neto por Unidad:</Text>
-              <Text style={[styles.previewValue, { color: theme.primary }]}>${finalUnitPrice.toFixed(2)}</Text>
+              <View style={[styles.previewBox, { backgroundColor: theme.primaryLight }]}>
+                <Text style={[styles.previewLabel, { color: theme.primary }]}>Precio Neto por Unidad:</Text>
+                <Text style={[styles.previewValue, { color: theme.primary }]}>${finalUnitPrice.toFixed(2)}</Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.footer}>
-            <TouchableOpacity style={[styles.cancelBtn, { borderColor: theme.border }]} onPress={onClose}>
-              <Text style={[styles.cancelBtnText, { color: theme.textSubtle }]}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave}>
-              <Text style={styles.saveBtnText}>Aplicar Cambios</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.footer}>
+              <TouchableOpacity style={[styles.cancelBtn, { borderColor: theme.border }]} onPress={onClose}>
+                <Text style={[styles.cancelBtnText, { color: theme.textSubtle }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave}>
+                <Text style={styles.saveBtnText}>Aplicar Cambios</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -104,67 +126,70 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 10,
   },
   card: {
     borderRadius: 14,
     width: '100%',
     maxWidth: 420,
-    padding: 20,
+    overflow: 'hidden',
+  },
+  scrollContent: {
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
   },
   productName: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
   },
   body: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   label: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
+    paddingVertical: 8,
+    fontSize: 14,
   },
   hint: {
     fontSize: 11,
-    marginTop: 4,
+    marginTop: 2,
   },
   previewBox: {
-    marginTop: 16,
-    padding: 12,
+    marginTop: 12,
+    padding: 10,
     borderRadius: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   previewLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   previewValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 8,
+    marginTop: 6,
   },
   cancelBtn: {
     flex: 1,
@@ -174,7 +199,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   saveBtn: {
@@ -184,7 +209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#FFFFFF',
     fontWeight: '700',
   },
