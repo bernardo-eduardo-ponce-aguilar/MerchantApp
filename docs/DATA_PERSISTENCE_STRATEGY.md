@@ -53,6 +53,7 @@ flowchart LR
    - `base_price`: Float
    - `cost`: Float
    - `stock`: Integer
+   - `track_stock`: Boolean (determina si descuenta inventario; false para alimentos preparados o servicios)
    - `updated_at`: ISO8601 Timestamp
 
 3. **`sales` (Transacciones de Venta):**

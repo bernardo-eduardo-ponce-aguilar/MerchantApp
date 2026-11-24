@@ -1,0 +1,24 @@
+{
+  "name": "merchantflow-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "dev:backend": "npm run start:dev --workspace=backend",
+    "build:backend": "npm run build --workspace=backend",
+    "docker:build": "docker build -t merchantflow-backend ./apps/backend",
+    "docker:run": "docker run --rm -p 4000:8080 --env-file apps/backend/.env -e PORT=8080 merchantflow-backend",
+    "docker:compose": "docker compose up --build"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0"
+  },
+  "packageManager": "npm@10.9.3"
+}

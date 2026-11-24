@@ -1,19 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ShiftInfo } from '../types';
+import { ShiftInfo, SyncStatus } from '../types';
 import { useTheme } from '../theme/ThemeContext';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
   activeShift: ShiftInfo | null;
   onOpenShiftModal: () => void;
+  syncStatus?: SyncStatus;
+  onTriggerSync?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onToggleSidebar,
   activeShift,
   onOpenShiftModal,
+  syncStatus,
+  onTriggerSync,
 }) => {
   const { theme, isDark, toggleTheme } = useTheme();
 
@@ -29,6 +33,50 @@ export const Header: React.FC<HeaderProps> = ({
             Terminal #01
           </Text>
         </View>
+
+        {/* Indicador de conexión / sincronización con el Backend */}
+        {syncStatus && (
+          <TouchableOpacity
+            style={[
+              styles.syncBadge,
+              {
+                backgroundColor: syncStatus.isOnline
+                  ? theme.successLight
+                  : theme.surfaceSubtle,
+                borderColor: theme.border,
+              },
+            ]}
+            onPress={onTriggerSync}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={
+                syncStatus.isSyncing
+                  ? 'sync'
+                  : syncStatus.isOnline
+                  ? 'cloud-done-outline'
+                  : 'cloud-offline-outline'
+              }
+              size={14}
+              color={syncStatus.isOnline ? theme.success : theme.textSubtle}
+              style={syncStatus.isSyncing ? { transform: [{ rotate: '45deg' }] } : undefined}
+            />
+            <Text
+              style={[
+                styles.syncText,
+                { color: syncStatus.isOnline ? theme.success : theme.textSubtle },
+              ]}
+            >
+              {syncStatus.isSyncing
+                ? 'Sincronizando...'
+                : syncStatus.isOnline
+                ? syncStatus.pendingSalesCount > 0
+                  ? `Sync (${syncStatus.pendingSalesCount})`
+                  : 'En línea'
+                : 'Offline'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.rightRow}>
@@ -106,6 +154,20 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     fontWeight: '700',
+  },
+  syncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginLeft: 10,
+    gap: 4,
+  },
+  syncText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   rightRow: {
     flexDirection: 'row',

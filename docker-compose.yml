@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: merchantflow-backend
+    restart: unless-stopped
+    ports:
+      # Mapeo: PUERTO_LOCAL:PUERTO_CONTENEDOR
+      # Por defecto usa 4000 en tu máquina para no colisionar con Next.js (3000).
+      # Puedes cambiar HOST_PORT en tu entorno o modificar este valor directamente.
+      - "${HOST_PORT:-4000}:8080"
+    env_file:
+      - ./apps/backend/.env
+    environment:
+      # Puerto interno del contenedor (Cloud Run standard)
+      - PORT=8080
+
+  # Base de datos PostgreSQL local (opcional para desarrollo offline sin Neon)
+  postgres:
+    image: postgres:16-alpine
+    container_name: merchantflow-local-db
+    restart: unless-stopped
+    profiles:
+      - local-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: merchantflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d merchantflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

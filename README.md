@@ -1,98 +1,81 @@
 # MerchantApp 🚀
 
-**MerchantApp** es un ecosistema integral de Punto de Venta (POS) y gestión comercial modular y adaptable, desarrollado con **React Native** para despliegue multiplataforma (Android nativo y Web en línea).
+**MerchantApp** es un ecosistema integral de Punto de Venta (POS) y gestión comercial modular, moderno y adaptable. Está compuesto por aplicaciones frontend desarrolladas con **React Native** (móvil y web) y una **API REST centralizada** desarrollada con **NestJS**, **Prisma ORM** y **PostgreSQL (Neon)**.
 
 ---
 
-## 🏗️ Arquitectura y Separación de Proyectos
+## 🏛️ Arquitectura del Monorepo como Fuente de Verdad
 
-Para optimizar los pipelines de **CI/CD independientes**, despliegues aislados y mantenimiento sin acoplamiento, las aplicaciones están separadas en proyectos frontend independientes:
+El monorepo está orquestado mediante **npm workspaces** y **Turborepo** (`turbo.json`), permitiendo construir, probar y ejecutar de forma desacoplada tanto los clientes frontend como el backend:
 
 ```text
-MerchantFlow/
+MerchantFlow/ (Raíz Monorepo)
 ├── apps/
-│   ├── MerchantFlowPOS/   # Terminal POS táctil (Android / Web) - ✅ Versión activa
-│   └── MerchantFlowApp/   # Aplicación operativa y administrativa
-├── .github/workflows/
-│   ├── merchantflow-pos.yml # CI/CD automatizado independiente para POS
-│   └── merchantflow-app.yml # CI/CD automatizado independiente para App de Gestión
+│   ├── backend/            # [ACTIVO] API REST NestJS + Prisma ORM + PostgreSQL Neon (Cloud Run Ready)
+│   ├── MerchantFlowPOS/    # [ACTIVO] Terminal de Punto de Venta (React Native / Android / Web)
+│   └── MerchantFlowApp/    # [PENDIENTE] Backoffice administrativo / SaaS Web de Gestión
 ├── docs/
-│   └── DATA_PERSISTENCE_STRATEGY.md # Arquitectura Offline-First y Base de Datos
+│   ├── DATABASE_DESIGN_SAAS_BACKOFFICE.md  # Diseño relacional multitenant y esquemas
+│   ├── DATA_PERSISTENCE_STRATEGY.md        # Arquitectura Offline-First y Sync Protocol
+│   └── schema.sql                          # DDL de PostgreSQL
+├── docker-compose.yml      # Entorno de pruebas local contenedorizado
+├── turbo.json              # Orquestador de builds y tareas concurrentes
+├── package.json            # Scripts globales del monorepo
 └── README.md
 ```
 
-> 💡 **Nota sobre Repositorios:** Si se prefiere dividir físicamente en dos repositorios de GitHub independientes (`MerchantFlowPOS.git` y `MerchantFlowApp.git`), cada carpeta dentro de `apps/` ya cuenta con su propio `package.json`, TypeScript, configuración Expo y dependencias aisladas para ser movidas a su propio repo de forma inmediata.
+### 📦 Estado de las Aplicaciones del Ecosistema
+
+| Proyecto | Ruta | Rol / Función | Estado Actual |
+|---|---|---|---|
+| **`MerchantFlowPOS`** | `apps/MerchantFlowPOS` | Terminal física y web de caja: catálogo, transacciones, cobros mixtos, turnos, soporte landscape/portrait y sincronización con backend. | ✅ **Activo y Conectado** |
+| **`backend`** | `apps/backend` | API REST centralizada: control de turnos, catálogo, ventas, protocolo Sync Push/Pull idempotente, documentado con Swagger. | ✅ **Activo** |
+| **`MerchantFlowApp`** | `apps/MerchantFlowApp` | Backoffice para administración de tiendas, configuración de impuestos, catálogo global, cortes de caja y personalización. | ⏳ **Pendiente para siguientes fases** |
 
 ---
 
-## 🗄️ Persistencia de Datos & Sincronización en la Nube
+## 🔄 Conexión de `MerchantFlowPOS` con el `backend`
 
-Para garantizar que el punto de venta funcione sin interrupciones incluso sin conexión a internet, se definió una arquitectura **Offline-First**:
-- **Base de Datos Local:** Implementación en SQLite / WatermelonDB en el cliente.
-- **Patrón Outbox:** Registro instantáneo de ventas con estado `PENDING_SYNC` y subida asíncrona mediante workers al detectar red.
-- **Consultas Delta Sync:** Descarga incremental de cambios en catálogo y precios.
-- Consulta los detalles completos del esquema relacional y protocolos en [DATA_PERSISTENCE_STRATEGY.md](file:///c:/Users/Usuario/Documents/personal_devs/MerchantFlow/docs/DATA_PERSISTENCE_STRATEGY.md).
-
----
-
-## 🖥️ Módulo `MerchantFlowPOS` (Terminal de Punto de Venta)
-
-Ubicado en `apps/MerchantFlowPOS/`, implementa el prototipo funcional de la terminal de cobro.
-
-### 🚀 Flujo de Onboarding & Operación Directa en Caja
-1. **Arranque Inmediato en Caja:**
-   - La aplicación inicia directamente en la interfaz de caja.
-   - Presenta un modal inicial de **Control de Turno**, permitiendo **"Empezar turno"** (ingresando cajero y fondo inicial) o **"Retomar turno activo"** si ya había uno abierto.
-2. **Panel Lateral Colapsable (Menú de Hamburguesa):**
-   - Accionable desde la esquina superior izquierda.
-   - Incluye viñetas de navegación:
-     - 🛒 *Punto de Venta / Caja (Principal)*
-     - 🍽️ *Comandas & Cocina (Flujo opcional)*
-     - 💼 *Control de Turno (Estado de apertura/cierre)*
-     - 🖨️ *Impresoras (Bluetooth / USB)*
-     - ⚙️ *Configuración POS*
-3. **Catálogo Intuitivo y Selección de Productos:**
-   - Filtro horizontal dinámico por **categorías** (Bebidas, Alimentos, Cafetería, Postres, Abarrotes, etc.).
-   - **Buscador en tiempo real** por nombre o código de barra.
-   - Al tocar cualquier producto, se añade automáticamente al carrito/transacción sumando cantidades.
-4. **Edición Flexible de Precios y Descuentos:**
-   - Cada producto en el carrito cuenta con un botón de edición para ajustar el **precio unitario** o aplicar un **descuento** en vivo para la venta actual.
-5. **Simulación de Cobro y Métodos de Pago:**
-   - Opciones de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`.
-   - Botones rápidos de denominaciones y pago exacto.
-   - Cálculo y visualización en tiempo real de:
-     - **Monto cubierto**
-     - **Faltante por cubrir** (bloquea la finalización si no está saldado)
-     - **Cambio / Vuelto**
-   - Al completar el cobro, se emite una simulación de **ticket de venta térmico** con desglose completo.
+`MerchantFlowPOS` implementa una arquitectura híbrida **Offline-First**:
+1. **Health Check y Detección de Estado:**
+   - En el encabezado ([`Header.tsx`](file:///c:/Users/Usuario/Documents/personal_devs/MerchantFlow/apps/MerchantFlowPOS/src/components/Header.tsx)) se muestra un distintivo en tiempo real: `En línea` (verde) u `Offline` (gris). Al tocar el distintivo, se puede disparar una sincronización manual inmediata.
+2. **Pull (Descarga de Catálogo):**
+   - Al iniciar, la app invoca `GET /api/v1/sync/pull` mediante [`ApiService.ts`](file:///c:/Users/Usuario/Documents/personal_devs/MerchantFlow/apps/MerchantFlowPOS/src/services/apiService.ts).
+   - Si el backend está disponible, pobla el catálogo con los productos y categorías de la base de datos central.
+   - Si no hay red, la terminal utiliza de forma transparente los datos locales preconfigurados sin interrumpir la operación.
+3. **Push (Subida de Ventas y Turnos):**
+   - Cuando se cobra una venta o se apertura un turno, se intenta enviar atómicamente a `POST /api/v1/sync/sales`.
+   - Si la terminal pierde conectividad, la venta se almacena localmente en la cola de pendientes (`pendingSales`) y se actualiza el contador visual: `Sync (N)`. Al restaurar la conexión, se envían por lotes de forma idempotente.
 
 ---
 
-## 🏃 Instrucciones para Ejecutar `MerchantFlowPOS`
+## ⚡ Comandos del Monorepo
 
-### Prerrequisitos
-- Node.js (v18+)
-- npm o yarn
+```bash
+# 1. Instalar todas las dependencias del monorepo
+npm install
 
-### Pasos
-1. Entrar en la carpeta de la app:
-   ```bash
-   cd apps/MerchantFlowPOS
-   ```
-2. Ejecutar en versión Web:
-   ```bash
-   npm run web
-   ```
-3. Ejecutar en Android:
-   ```bash
-   npm run android
-   ```
+# 2. Iniciar el Backend NestJS en desarrollo
+npm run dev:backend
+# URL: http://localhost:3000/api/v1
+# Swagger Docs: http://localhost:3000/docs
+# Health: http://localhost:3000/health
+
+# 3. Iniciar la Terminal POS (MerchantFlowPOS)
+cd apps/MerchantFlowPOS
+npm run web       # Modo navegador
+npm run android   # Dispositivo / Emulador Android
+
+# 4. Pruebas con Docker Compose (Backend + PostgreSQL local)
+docker compose up --build
+```
 
 ---
 
-## 🗺️ Roadmap de Periféricos & Hardware
+## 🛠️ Variables de Entorno del POS (`MerchantFlowPOS`)
 
-- [x] **Prototipo Core POS:** Flujo de turno, catálogo, carrito dinámico, ajuste de precios, pagos mixtos y cambio.
-- [ ] **Fase 1: Impresión Térmica:** Conexión nativa con impresoras ESC/POS vía Bluetooth Low Energy / Serial USB.
-- [ ] **Fase 2: Lectores de Código de Barra:** Detección de dispositivos USB HID / Bluetooth y escáner por cámara.
-- [ ] **Fase 3: MerchantFlowApp:** Panel administrativo centralizado.
+Para configurar la URL del backend en el cliente Expo:
+```env
+EXPO_PUBLIC_API_URL=http://localhost:3000/api/v1
+```
+*(Si pruebas en un celular físico vía Expo Go en la misma red Wi-Fi, puedes configurar la IP local de tu máquina, por ejemplo: `http://192.168.1.50:3000/api/v1`)*.

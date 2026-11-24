@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   SafeAreaView,
   View,
@@ -19,6 +19,7 @@ import { CheckoutModal } from './src/components/CheckoutModal';
 import { ReceiptModal } from './src/components/ReceiptModal';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './src/data/initialData';
+import { ApiService } from './src/services/apiService';
 import {
   Category,
   Product,
@@ -26,6 +27,7 @@ import {
   ShiftInfo,
   PaymentEntry,
   CompletedSale,
+  SyncStatus,
 } from './src/types';
 
 function POSAppContent() {
@@ -44,8 +46,8 @@ function POSAppContent() {
   const [currentScreen, setCurrentScreen] = useState<string>('pos');
 
   // Catálogo y Búsqueda
-  const [categories] = useState<Category[]>(INITIAL_CATEGORIES);
-  const [products] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -58,16 +60,99 @@ function POSAppContent() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
   const [lastCompletedSale, setLastCompletedSale] = useState<CompletedSale | null>(null);
 
+  // Sincronización y Conexión con Backend
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    isOnline: false,
+    isSyncing: false,
+    pendingSalesCount: 0,
+  });
+  const [pendingSales, setPendingSales] = useState<CompletedSale[]>([]);
+
+  // Sincronizar catálogo al arrancar (Pull)
+  const fetchCatalogFromBackend = useCallback(async () => {
+    try {
+      const isAlive = await ApiService.checkHealth();
+      setSyncStatus((prev) => ({ ...prev, isOnline: isAlive }));
+
+      if (isAlive) {
+        const result = await ApiService.pullCatalog();
+        if (result.categories.length > 0) {
+          setCategories(result.categories);
+        }
+        if (result.products.length > 0) {
+          setProducts(result.products);
+        }
+      }
+    } catch {
+      // Offline fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCatalogFromBackend();
+  }, [fetchCatalogFromBackend]);
+
+  // Manejador manual / automático de Sync Push
+  const handleTriggerSync = useCallback(async () => {
+    if (syncStatus.isSyncing) return;
+    setSyncStatus((prev) => ({ ...prev, isSyncing: true }));
+
+    const isAlive = await ApiService.checkHealth();
+    setSyncStatus((prev) => ({ ...prev, isOnline: isAlive }));
+
+    if (isAlive && (pendingSales.length > 0 || (activeShift && !activeShift.synced))) {
+      const pushResult = await ApiService.pushSync({
+        shifts: activeShift && !activeShift.synced ? [activeShift] : undefined,
+        sales: pendingSales,
+      });
+
+      if (pushResult.status !== 'error') {
+        // Remover ventas sincronizadas
+        setPendingSales((prev) =>
+          prev.filter((s) => !pushResult.syncedSales.includes(s.id))
+        );
+        if (activeShift && !activeShift.synced) {
+          setActiveShift({ ...activeShift, synced: true });
+        }
+        setSyncStatus((prev) => ({
+          ...prev,
+          lastSyncedAt: new Date().toLocaleTimeString(),
+          pendingSalesCount: pendingSales.length - pushResult.syncedSales.length,
+        }));
+      }
+    }
+
+    // Actualizar catálogo también
+    if (isAlive) {
+      await fetchCatalogFromBackend();
+    }
+
+    setSyncStatus((prev) => ({ ...prev, isSyncing: false }));
+  }, [activeShift, fetchCatalogFromBackend, pendingSales, syncStatus.isSyncing]);
+
   // Manejadores de Turno
-  const handleStartShift = (cashierName: string, initialCash: number) => {
+  const handleStartShift = async (cashierName: string, initialCash: number) => {
+    // Generar ID universal en cliente
+    const shiftUuid = 'shift-' + Date.now();
     const newShift: ShiftInfo = {
+      id: shiftUuid,
       cashierName,
       initialCash,
       startedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isActive: true,
+      synced: false,
     };
+
     setActiveShift(newShift);
     setIsShiftModalOpen(false);
+
+    // Intentar sincronizar con backend en segundo plano
+    if (syncStatus.isOnline) {
+      const remote = await ApiService.createShift(cashierName, initialCash);
+      if (remote) {
+        setActiveShift((prev) => (prev ? { ...prev, id: remote.id, synced: true } : null));
+      }
+    }
   };
 
   const handleResumeShift = () => {
@@ -147,13 +232,15 @@ function POSAppContent() {
   const totalAmount = Math.max(0, subtotal - discountTotal);
   const totalItemCount = cartItems.reduce((acc, it) => acc + it.quantity, 0);
 
-  const handleFinishSale = (
+  const handleFinishSale = async (
     payments: PaymentEntry[],
     totalReceived: number,
     change: number
   ) => {
+    const saleId = `VTA-${Date.now()}`;
     const sale: CompletedSale = {
-      id: `VTA-${Date.now()}`,
+      id: saleId,
+      shiftId: activeShift?.id,
       timestamp: new Date().toLocaleString(),
       items: [...cartItems],
       subtotal,
@@ -162,22 +249,45 @@ function POSAppContent() {
       payments,
       totalReceived,
       changeGiven: change,
+      synced: false,
     };
 
     setLastCompletedSale(sale);
     setCartItems([]);
     setIsCheckoutOpen(false);
+
+    // Intentar sincronizar venta con Backend en segundo plano
+    if (syncStatus.isOnline && activeShift?.id) {
+      const res = await ApiService.pushSync({ sales: [sale] });
+      if (res.status !== 'error') {
+        sale.synced = true;
+        setSyncStatus((prev) => ({
+          ...prev,
+          lastSyncedAt: new Date().toLocaleTimeString(),
+        }));
+        return;
+      }
+    }
+
+    // Si falló o está offline, acumular en cola de pendientes
+    setPendingSales((prev) => {
+      const updated = [...prev, sale];
+      setSyncStatus((s) => ({ ...s, pendingSalesCount: updated.length }));
+      return updated;
+    });
   };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.surface }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Barra Superior con botón hamburguesa y Switch de Tema Oscuro */}
+      {/* Barra Superior con botón hamburguesa, Switch de Tema y Estado Sync */}
       <Header
         onToggleSidebar={() => setIsSidebarOpen(true)}
         activeShift={activeShift}
         onOpenShiftModal={() => setIsShiftModalOpen(true)}
+        syncStatus={syncStatus}
+        onTriggerSync={handleTriggerSync}
       />
 
       {/* Contenido Principal de Caja (POS) */}

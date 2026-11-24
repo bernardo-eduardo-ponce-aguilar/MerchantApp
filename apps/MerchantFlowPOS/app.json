@@ -21,6 +21,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "34b8cd51-7413-4347-8d92-57580b3ce2c7"
+      }
+    },
+    "owner": "bernardo-eduardo-ponce-aguilar"
   }
 }

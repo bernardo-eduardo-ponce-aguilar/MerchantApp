@@ -29,14 +29,17 @@ export interface PaymentEntry {
 }
 
 export interface ShiftInfo {
+  id?: string;
   cashierName: string;
   initialCash: number;
   startedAt: string;
   isActive: boolean;
+  synced?: boolean;
 }
 
 export interface CompletedSale {
   id: string;
+  shiftId?: string;
   timestamp: string;
   items: CartItem[];
   subtotal: number;
@@ -45,4 +48,13 @@ export interface CompletedSale {
   payments: PaymentEntry[];
   totalReceived: number;
   changeGiven: number;
+  synced?: boolean;
+}
+
+export interface SyncStatus {
+  isOnline: boolean;
+  isSyncing: boolean;
+  pendingSalesCount: number;
+  lastSyncedAt?: string;
+  error?: string;
 }
