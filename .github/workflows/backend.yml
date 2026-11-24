@@ -1,0 +1,40 @@
+name: CI/CD Pipeline - Backend
+
+on:
+  push:
+    branches: [ main, preview ]
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    branches: [ main, preview ]
+    paths:
+      - 'apps/backend/**'
+
+defaults:
+  run:
+    working-directory: apps/backend
+
+jobs:
+  lint-and-test:
+    name: Lint & Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/backend/package.json
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Build Check
+        run: npm run build
