@@ -2,9 +2,9 @@ import { Category, Product, ShiftInfo, CompletedSale } from '../types';
 import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '../data/initialData';
 
 // Configuración de URL base del Backend
-// Permite sobreescritura mediante variable de entorno o localhost por defecto
+// Permite sobreescritura mediante variable de entorno o fallback a puerto 4000 (Docker local)
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 export class ApiService {
   private static baseUrl = API_BASE_URL;
